@@ -11,8 +11,8 @@ function validatePackage(pkg, catalog) {
   const items = pkg.items || [];
 
   // --- 1. Dates and Cities ---
-  if (req.nights < 3 || req.nights > 10) {
-    errors.push(`Nights must be 3-10, got ${req.nights}`);
+  if (req.nights < 2 || req.nights > 10) {
+    errors.push(`Nights must be 2-10, got ${req.nights}`);
   }
 
   const startDate = req.startDate;
@@ -143,16 +143,64 @@ function validatePackage(pkg, catalog) {
   // --- 4. Attractions ---
   const attractionItems = items.filter(it => it.type === 'attraction');
   const seenAttractions = new Set();
+  const attsByDate = {};
+
+  // Find city change dates
+  const cityChangeDates = new Set();
+  items.filter(it => it.type === 'transfer' && it.start).forEach(tr => {
+    // If it's an intercity transfer
+    const catTr = catalog.transfers.get(tr.catalog_id);
+    if (catTr && catTr.from_city && catTr.to_city) {
+      cityChangeDates.add(tr.start.slice(0, 10));
+    }
+  });
+
   for (const attItem of attractionItems) {
     if (seenAttractions.has(attItem.catalog_id)) {
       errors.push(`Attraction ${attItem.name} (${attItem.catalog_id}) included more than once`);
     }
     seenAttractions.add(attItem.catalog_id);
 
+    const attDate = attItem.start ? attItem.start.slice(0, 10) : '';
+    if (!attsByDate[attDate]) attsByDate[attDate] = [];
+    attsByDate[attDate].push(attItem);
+
     // No attractions on last day
-    if (attItem.start && attItem.start.startsWith(expectedReturnDate)) {
+    if (attDate === expectedReturnDate) {
       errors.push(`No attractions allowed on the last day (${expectedReturnDate})`);
     }
+  }
+
+  // Check per-day attraction count and overlap
+  for (const [date, atts] of Object.entries(attsByDate)) {
+    if (atts.length > 2) {
+      errors.push(`Day ${date} has ${atts.length} attractions; maximum allowed is 2`);
+    }
+
+    // Check overlap
+    atts.sort((a, b) => a.start.localeCompare(b.start));
+    for (let i = 0; i < atts.length - 1; i++) {
+      if (atts[i].end && atts[i + 1].start && atts[i].end > atts[i + 1].start) {
+        errors.push(`Attractions overlap on ${date}: ${atts[i].name} ends at ${atts[i].end.slice(11, 16)} but ${atts[i + 1].name} starts at ${atts[i + 1].start.slice(11, 16)}`);
+      }
+    }
+  }
+
+  // Check full days have at least 1 attraction
+  let cur = new Date(startDate);
+  const end = new Date(expectedReturnDate);
+  // Advance to Day 2
+  cur.setDate(cur.getDate() + 1);
+  while (cur < end) {
+    const curStr = cur.toISOString().slice(0, 10);
+    if (!cityChangeDates.has(curStr)) {
+      // It is a full day
+      const count = (attsByDate[curStr] || []).length;
+      if (count < 1) {
+        errors.push(`Full day ${curStr} must have between 1 and 2 attractions, found 0`);
+      }
+    }
+    cur.setDate(cur.getDate() + 1);
   }
 
   return {

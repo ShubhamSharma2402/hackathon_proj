@@ -9,6 +9,8 @@
 // - Arrival / city-change days: optional, must start AFTER reaching the hotel/city
 // - Last day: NO attractions
 
+const { calcAttractionPrice } = require('./pricer');
+
 function getDayOfWeek(dateStr) {
   const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
   return days[new Date(dateStr).getDay()];
@@ -25,7 +27,7 @@ function minutesToTime(totalMins) {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
-function scheduleAttractionsForDay(catalog, city, dateStr, earliestStartTimeHHMM, maxCount, usedAttractionIds) {
+function scheduleAttractionsForDay(catalog, city, dateStr, earliestStartTimeHHMM, maxCount, usedAttractionIds, sortByPrice = false, adults = 1, children = 0) {
   const dayOfWeek = getDayOfWeek(dateStr);
   const cityAttractions = catalog.attractionsByCity.get(city) || [];
 
@@ -36,6 +38,14 @@ function scheduleAttractionsForDay(catalog, city, dateStr, earliestStartTimeHHMM
     if (att.closed_dates && att.closed_dates.includes(dateStr)) continue;
 
     candidates.push(att);
+  }
+
+  if (sortByPrice) {
+    candidates.sort((a, b) => {
+      const pa = calcAttractionPrice(a, adults, children);
+      const pb = calcAttractionPrice(b, adults, children);
+      return pa - pb;
+    });
   }
 
   const scheduled = [];

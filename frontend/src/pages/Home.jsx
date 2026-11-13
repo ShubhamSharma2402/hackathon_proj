@@ -90,7 +90,7 @@ export default function Home({ navigate }) {
     if (!form.departureAirport.trim()) errs.departureAirport = 'Enter or select a departure city'
     if (!form.country.trim()) errs.country = 'Enter or select a destination country'
     if (!form.startDate) errs.startDate = 'Enter a start date'
-    if (form.nights < 3 || form.nights > 10) errs.nights = 'Nights must be between 3 and 10'
+    if (form.nights < 2 || form.nights > 10) errs.nights = 'Nights must be between 2 and 10'
     if (form.adults < 1) errs.adults = 'At least 1 adult required'
     const b = Number(form.budgetInr) || 0
     if (b <= 0) errs.budgetInr = 'Budget must be greater than 0'
@@ -266,13 +266,13 @@ export default function Home({ navigate }) {
             <div>
               <label className="block text-xs font-medium text-secondary mb-1.5">
                 Trip Duration (Nights)
-                <span className="text-muted block font-normal text-[11px]">Must be between 3 and 10 nights</span>
+                <span className="text-muted block font-normal text-[11px]">Must be between 2 and 10 nights</span>
               </label>
               <input
                 type="number"
                 value={form.nights}
-                onChange={e => setForm(f => ({ ...f, nights: parseInt(e.target.value) || 3 }))}
-                min="3" max="10"
+                onChange={e => setForm(f => ({ ...f, nights: parseInt(e.target.value) || 2 }))}
+                min="2" max="10"
                 className="input-base font-semibold"
               />
               {formErrs.nights && <p className="text-semantic-error text-xs mt-1">{formErrs.nights}</p>}

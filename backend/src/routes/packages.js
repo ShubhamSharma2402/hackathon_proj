@@ -43,8 +43,8 @@ router.post('/', async (req, res) => {
   }
 
   const nights = Number(request.nights);
-  if (isNaN(nights) || nights < 3 || nights > 10) {
-    return res.status(400).json({ error: 'INVALID_NIGHTS', message: 'Trip length must be between 3 and 10 nights' });
+  if (isNaN(nights) || nights < 2 || nights > 10) {
+    return res.status(400).json({ error: 'INVALID_NIGHTS', message: 'Trip length must be between 2 and 10 nights' });
   }
 
   const adults = Number(request.adults);

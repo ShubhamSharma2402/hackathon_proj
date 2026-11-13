@@ -57,6 +57,81 @@ export default function PackagePage({ packageId, navigate }) {
     };
   }
 
+  function addDaysStr(dateStr, days) {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const dt = new Date(y, m - 1, d + days);
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`;
+  }
+
+  function formatDayDate(dateStr) {
+    if (!dateStr) return '';
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const dt = new Date(y, m - 1, d);
+    return dt.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  }
+
+  // Group items by Day: Outbound flight on Day 1 (arrival), Return flight on Day 7 (departure)
+  const dayGroups = React.useMemo(() => {
+    if (!pkg?.items) return [];
+    const items = pkg.items;
+    const startStr = pkg.request?.startDate || '2027-04-10';
+    const totalNights = pkg.request?.nights || 6;
+    const totalDays = totalNights + 1;
+
+    const days = [];
+    for (let i = 0; i < totalDays; i++) {
+      const dateStr = addDaysStr(startStr, i);
+      days.push({
+        dayIndex: i + 1,
+        dateStr,
+        isArrival: i === 0,
+        isDeparture: i === totalDays - 1,
+        isFullDay: i > 0 && i < totalDays - 1,
+        items: [],
+      });
+    }
+
+    const flights = items.filter(i => i.type === 'flight');
+    const outboundFlight = flights[0];
+    const returnFlight = flights[1];
+
+    items.forEach(it => {
+      // 1. Outbound flight lands on Arrival Day (Day 1)
+      if (it === outboundFlight) {
+        days[0].items.push(it);
+      }
+      // 2. Return flight departs on Departure Day (Day 7)
+      else if (it === returnFlight) {
+        days[days.length - 1].items.push(it);
+      }
+      // 3. Hotel check-in corresponds to hotel start date
+      else if (it.type === 'hotel') {
+        const d = days.find(x => x.dateStr === it.start) || days[0];
+        d.items.push(it);
+      }
+      // 4. Other items (transfers, attractions) mapped to their respective day
+      else {
+        const itemDate = it.start ? it.start.slice(0, 10) : null;
+        const d = days.find(x => x.dateStr === itemDate);
+        if (d) {
+          d.items.push(it);
+        } else if (it.end && it.end.slice(0, 10) === days[days.length - 1].dateStr) {
+          days[days.length - 1].items.push(it);
+        } else {
+          days[0].items.push(it);
+        }
+      }
+    });
+
+    return days;
+  }, [pkg]);
+
   useEffect(() => {
     const id = localStorage.getItem('bmh_current_pkg_id') || packageId;
     const cachedCards = localStorage.getItem('bmh_package_cards');
@@ -392,98 +467,143 @@ export default function PackagePage({ packageId, navigate }) {
       </div>
 
       {/* Day-by-Day Timeline (M4) */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold tracking-tight text-primary">
-            Day-by-Day Itinerary ({(pkg.items || []).length} Activities)
-          </h2>
-          <span className="text-xs text-muted">Chronological order strictly validated</span>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between pb-2 border-b border-border">
+          <div>
+            <h2 className="text-sm font-semibold tracking-tight text-primary">
+              Day-by-Day Itinerary ({(pkg.items || []).length} Activities across {dayGroups.length} Days)
+            </h2>
+            <p className="text-[11px] text-secondary mt-0.5">
+              Strictly verified schedule: 1–2 attractions on full days, 0 on departure day.
+            </p>
+          </div>
+          <span className="text-xs text-muted hidden sm:inline">Chronological &amp; Overlap Validated</span>
         </div>
 
-        <div className="space-y-2">
-          {(pkg.items || []).map((item, idx) => {
-            if (!item) return null;
-            const timeStr = item.start && item.start.includes('T') ? item.start.slice(11, 16) : (item.start || '');
-            const endStr = item.end && item.end.includes('T') ? item.end.slice(11, 16) : (item.end || '');
-
-            let badgeClass = 'badge-neutral';
-            if (item.type === 'flight') badgeClass = 'badge-info';
-            else if (item.type === 'transfer') badgeClass = 'badge-success';
-            else if (item.type === 'hotel') badgeClass = 'badge-warning';
-            else if (item.type === 'attraction') badgeClass = 'badge-accent';
-
-            const itemImage = getItemImage(item);
-            const hasImage = Boolean(itemImage);
+        <div className="space-y-6">
+          {dayGroups.map((day) => {
+            const attCount = day.items.filter(i => i.type === 'attraction').length;
+            const formattedDate = formatDayDate(day.dateStr);
 
             return (
-              <div 
-                key={idx}
-                onClick={() => {
-                  // ONLY open if picture is already given in dataset; otherwise nothing happens
-                  if (hasImage) {
-                    setSelectedItem(item);
-                  }
-                }}
-                className={`bg-surface p-3.5 rounded-lg border border-border shadow-card flex items-center justify-between transition-all duration-150 ${
-                  hasImage 
-                    ? 'cursor-pointer hover:border-accent hover:bg-surface-nested hover:shadow-dropdown group' 
-                    : 'cursor-default'
-                }`}
-                title={hasImage ? `Click to view ${item.name} photo and details` : undefined}
-              >
-                <div className="flex items-center space-x-3">
-                  <div className={`w-8 h-8 rounded-md border flex items-center justify-center text-xs font-semibold transition-colors ${
-                    hasImage 
-                      ? 'bg-accent-tint border-accent-border text-accent group-hover:bg-accent group-hover:text-white' 
-                      : 'bg-surface-nested border-border text-secondary'
-                  }`}>
-                    {idx + 1}
+              <div key={day.dayIndex} className="space-y-2.5">
+                {/* Day Header Badge */}
+                <div className="flex items-center justify-between bg-surface-nested px-3.5 py-2 rounded-lg border border-border">
+                  <div className="flex items-center space-x-2.5">
+                    <span className="w-5 h-5 rounded bg-accent text-white flex items-center justify-center text-[10px] font-bold">
+                      {day.dayIndex}
+                    </span>
+                    <span className="text-xs font-semibold text-primary">
+                      Day {day.dayIndex} &bull; {formattedDate}
+                    </span>
                   </div>
-                  <div>
-                    <div className="flex items-center space-x-2">
-                      <span className={`${badgeClass} text-[10px] px-2 py-0.5 uppercase tracking-wide`}>
-                        {item.type}
-                      </span>
-                      <span className={`text-xs font-semibold ${hasImage ? 'text-primary group-hover:text-accent transition-colors' : 'text-primary'}`}>
-                        {item.name}
-                      </span>
-                      {hasImage && (
-                        <span className="inline-flex items-center space-x-1 text-[10px] text-accent bg-accent-tint border border-accent-border px-1.5 py-0.5 rounded font-medium">
-                          <span>📷</span>
-                          <span className="hidden sm:inline">Photo</span>
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-[11px] text-muted mt-0.5 flex flex-wrap items-center gap-2">
-                      <span>{timeStr}{endStr ? ` → ${endStr}` : ''}</span>
-                      <span>&bull;</span>
-                      <span>{item.city}</span>
-                      {item.quantity && (
-                        <>
-                          <span>&bull;</span>
-                          <span>Qty: {item.quantity}</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
 
-                <div className="text-right flex items-center space-x-3">
                   <div>
-                    <div className="text-xs font-semibold text-primary">
-                      ₹{(item.price_inr || 0).toLocaleString('en-IN')}
-                    </div>
-                    {hasImage && (
-                      <span className="text-[10px] text-accent font-medium block sm:hidden">
-                        View details &rarr;
+                    {day.isArrival && (
+                      <span className="badge-info text-[10px] px-2 py-0.5">
+                        Arrival Day {attCount > 0 ? `• ${attCount} Attraction` : '• Hotel & Transfers'}
+                      </span>
+                    )}
+                    {day.isDeparture && (
+                      <span className="badge-neutral text-[10px] px-2 py-0.5 font-medium">
+                        Departure Day &bull; 0 Attractions
+                      </span>
+                    )}
+                    {day.isFullDay && (
+                      <span className="badge-success text-[10px] px-2 py-0.5 font-medium">
+                        Full Day &bull; {attCount} {attCount === 1 ? 'Attraction' : 'Attractions'} (Rule: 1–2 / day)
                       </span>
                     )}
                   </div>
-                  {hasImage && (
-                    <span className="hidden sm:inline-block text-muted group-hover:text-accent text-xs transition-colors">
-                      &rarr;
-                    </span>
-                  )}
+                </div>
+
+                {/* Day Items */}
+                <div className="space-y-2">
+                  {day.items.map((item, itemIdx) => {
+                    const timeStr = item.start && item.start.includes('T') ? item.start.slice(11, 16) : (item.start || '');
+                    const endStr = item.end && item.end.includes('T') ? item.end.slice(11, 16) : (item.end || '');
+
+                    let badgeClass = 'badge-neutral';
+                    if (item.type === 'flight') badgeClass = 'badge-info';
+                    else if (item.type === 'transfer') badgeClass = 'badge-success';
+                    else if (item.type === 'hotel') badgeClass = 'badge-warning';
+                    else if (item.type === 'attraction') badgeClass = 'badge-accent';
+
+                    const itemImage = getItemImage(item);
+                    const hasImage = Boolean(itemImage);
+
+                    return (
+                      <div 
+                        key={itemIdx}
+                        onClick={() => {
+                          if (hasImage) {
+                            setSelectedItem(item);
+                          }
+                        }}
+                        className={`bg-surface p-3.5 rounded-lg border border-border shadow-card flex items-center justify-between transition-all duration-150 ${
+                          hasImage 
+                            ? 'cursor-pointer hover:border-accent hover:bg-surface-nested hover:shadow-dropdown group' 
+                            : 'cursor-default'
+                        }`}
+                        title={hasImage ? `Click to view ${item.name} photo and details` : undefined}
+                      >
+                        <div className="flex items-center space-x-3">
+                          <div className={`w-7 h-7 rounded border flex items-center justify-center text-[11px] font-semibold transition-colors ${
+                            hasImage 
+                              ? 'bg-accent-tint border-accent-border text-accent group-hover:bg-accent group-hover:text-white' 
+                              : 'bg-surface-nested border-border text-secondary'
+                          }`}>
+                            {itemIdx + 1}
+                          </div>
+                          <div>
+                            <div className="flex items-center space-x-2">
+                              <span className={`${badgeClass} text-[10px] px-2 py-0.5 uppercase tracking-wide`}>
+                                {item.type}
+                              </span>
+                              <span className={`text-xs font-semibold ${hasImage ? 'text-primary group-hover:text-accent transition-colors' : 'text-primary'}`}>
+                                {item.name}
+                              </span>
+                              {hasImage && (
+                                <span className="inline-flex items-center space-x-1 text-[10px] text-accent bg-accent-tint border border-accent-border px-1.5 py-0.5 rounded font-medium">
+                                  <span>📷</span>
+                                  <span className="hidden sm:inline">Photo</span>
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[11px] text-muted mt-0.5 flex flex-wrap items-center gap-2">
+                              <span>{timeStr}{endStr ? ` → ${endStr}` : ''}</span>
+                              <span>&bull;</span>
+                              <span>{item.city}</span>
+                              {item.quantity && (
+                                <>
+                                  <span>&bull;</span>
+                                  <span>Qty: {item.quantity}</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="text-right flex items-center space-x-3">
+                          <div>
+                            <div className="text-xs font-semibold text-primary">
+                              ₹{(item.price_inr || 0).toLocaleString('en-IN')}
+                            </div>
+                            {hasImage && (
+                              <span className="text-[10px] text-accent font-medium block sm:hidden">
+                                View details &rarr;
+                              </span>
+                            )}
+                          </div>
+                          {hasImage && (
+                            <span className="hidden sm:inline-block text-muted group-hover:text-accent text-xs transition-colors">
+                              &rarr;
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             );

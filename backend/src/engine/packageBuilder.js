@@ -84,7 +84,8 @@ function buildAllPackages(catalog, request) {
   if (request.requestedCities && Array.isArray(request.requestedCities)) {
     const matched = validCityPlans.filter(p => 
       p.cities.length === request.requestedCities.length &&
-      p.cities.every((c, idx) => c === request.requestedCities[idx])
+      p.cities.every((c, idx) => c === request.requestedCities[idx]) &&
+      (!request.requestedNights || (Array.isArray(request.requestedNights) && p.nights.every((n, idx) => n === request.requestedNights[idx])))
     );
     if (matched.length > 0) {
       validCityPlans = matched;
@@ -94,7 +95,7 @@ function buildAllPackages(catalog, request) {
   if (validCityPlans.length === 0) {
     return {
       error: 'NO_PACKAGE_POSSIBLE',
-      message: `There are no available packages for ${nights} nights in ${country}. Trip must be between 3 and 10 nights with at least 2 nights per city.`
+      message: `There are no available packages for ${nights} nights in ${country}. Trip must be between 2 and 10 nights with at least 2 nights per city.`
     };
   }
 
@@ -158,22 +159,47 @@ function buildAllPackages(catalog, request) {
     if (fastestRet.flight_id !== retFlights[0].flight_id) selectedRetFlights.push(fastestRet);
 
     // Hotel variants per city:
-    // 1. Cheapest hotel
-    // 2. Highest stars hotel
-    // 3. Medium hotel
     const hotelCombinations = [];
-    const cheapestCombo = hotelOptionsByCity.map(opts => opts[0]);
-    hotelCombinations.push(cheapestCombo);
+    if (cities.length === 1) {
+      // For single-city trips: evaluate diverse hotel candidates across price tiers and areas
+      // This ensures areas with faster airport transfers (e.g. Ginza vs Shinjuku) are represented
+      const seenKeys = new Set();
+      function addSingleCityOpt(opt) {
+        if (!opt) return;
+        const key = `${opt.hotel.hotel_id}-${opt.room.room_id}`;
+        if (!seenKeys.has(key)) {
+          seenKeys.add(key);
+          hotelCombinations.push([opt]);
+        }
+      }
+      // 1. Top 5 cheapest options
+      hotelOptionsByCity[0].slice(0, 5).forEach(addSingleCityOpt);
+      // 2. Cheapest option per distinct neighborhood/area (crucial for taxi duration differences)
+      const byArea = {};
+      hotelOptionsByCity[0].forEach(opt => {
+        const area = opt.hotel.area || 'default';
+        if (!byArea[area]) {
+          byArea[area] = opt;
+          addSingleCityOpt(opt);
+        }
+      });
+      // 3. Highest star options
+      const sortedByStars = [...hotelOptionsByCity[0]].sort((a, b) => (b.hotel.stars || 3) - (a.hotel.stars || 3));
+      sortedByStars.slice(0, 3).forEach(addSingleCityOpt);
+    } else {
+      const cheapestCombo = hotelOptionsByCity.map(opts => opts[0]);
+      hotelCombinations.push(cheapestCombo);
 
-    const bestStarCombo = hotelOptionsByCity.map(opts => {
-      const sortedByStars = [...opts].sort((a, b) => (b.hotel.stars || 3) - (a.hotel.stars || 3));
-      return sortedByStars[0];
-    });
-    hotelCombinations.push(bestStarCombo);
+      const bestStarCombo = hotelOptionsByCity.map(opts => {
+        const sortedByStars = [...opts].sort((a, b) => (b.hotel.stars || 3) - (a.hotel.stars || 3));
+        return sortedByStars[0];
+      });
+      hotelCombinations.push(bestStarCombo);
 
-    if (hotelOptionsByCity[0].length > 1) {
-      const midCombo = hotelOptionsByCity.map(opts => opts[Math.min(1, opts.length - 1)]);
-      hotelCombinations.push(midCombo);
+      if (hotelOptionsByCity[0].length > 1) {
+        const midCombo = hotelOptionsByCity.map(opts => opts[Math.min(1, opts.length - 1)]);
+        hotelCombinations.push(midCombo);
+      }
     }
 
     // Evaluate combinations
@@ -191,7 +217,7 @@ function buildAllPackages(catalog, request) {
             return isTimeWithinWindow(pickupHHMM, tr.service_from, tr.service_until);
           });
           if (validArrTransfers.length === 0) continue;
-          const chosenArrTransfer = validArrTransfers[0];
+          validArrTransfers.sort((a, b) => calcTransferPrice(a, adults, children) - calcTransferPrice(b, adults, children));
 
           // Return Transfer
           const retTransfers = findReturnAirportTransfer(catalog, lastHotel, retFlight.from);
@@ -201,9 +227,27 @@ function buildAllPackages(catalog, request) {
             return isTimeWithinWindow(hotelLeaveHHMM, tr.service_from, tr.service_until);
           });
           if (validRetTransfers.length === 0) continue;
-          const chosenRetTransfer = validRetTransfers[0];
+          validRetTransfers.sort((a, b) => calcTransferPrice(a, adults, children) - calcTransferPrice(b, adults, children));
 
-          // Intercity Transfers
+          // Transfer variants: 1) Cheapest (e.g. buses), 2) Taxi/Private (for fastest/comfort)
+          const transferPairs = [
+            { arr: validArrTransfers[0], ret: validRetTransfers[0] },
+          ];
+          const taxiArr = validArrTransfers.find(t => t.type === 'AIRPORT_TAXI');
+          const taxiRet = validRetTransfers.find(t => t.type === 'AIRPORT_TAXI');
+          if ((taxiArr && taxiArr.transfer_id !== validArrTransfers[0].transfer_id) ||
+              (taxiRet && taxiRet.transfer_id !== validRetTransfers[0].transfer_id)) {
+            transferPairs.push({
+              arr: taxiArr || validArrTransfers[0],
+              ret: taxiRet || validRetTransfers[0],
+            });
+          }
+
+          for (const transferPair of transferPairs) {
+            const chosenArrTransfer = transferPair.arr;
+            const chosenRetTransfer = transferPair.ret;
+
+            // Intercity Transfers
           const chosenIntercityTransfers = [];
           let allIntercityValid = true;
           for (let i = 0; i < cities.length - 1; i++) {
@@ -227,37 +271,44 @@ function buildAllPackages(catalog, request) {
           }
           if (!allIntercityValid) continue;
 
-          // Schedule Attractions
-          const usedAttractionIds = new Set();
-          const scheduledAttractions = [];
+          const attModes = ['cheapest', 'standard'];
 
-          for (let dayIdx = 0; dayIdx < nights; dayIdx++) {
-            const currentDateStr = addDays(startDate, dayIdx);
-            let currentCity = cities[0];
-            for (const cd of cityDates) {
-              if (currentDateStr >= cd.checkIn && currentDateStr < cd.checkOut) {
-                currentCity = cd.city;
-                break;
+          for (const attMode of attModes) {
+            const isCheapestMode = attMode === 'cheapest';
+            // Schedule Attractions
+            const usedAttractionIds = new Set();
+            const scheduledAttractions = [];
+
+            for (let dayIdx = 0; dayIdx < nights; dayIdx++) {
+              const currentDateStr = addDays(startDate, dayIdx);
+              let currentCity = cities[0];
+              for (const cd of cityDates) {
+                if (currentDateStr >= cd.checkIn && currentDateStr < cd.checkOut) {
+                  currentCity = cd.city;
+                  break;
+                }
               }
-            }
 
-            if (dayIdx === 0) {
-              const hotelArrivalStr = addMinutesToTime(arrFlight.arrival_local, 60 + chosenArrTransfer.duration_minutes);
-              const hotelArrivalHHMM = hotelArrivalStr.slice(11, 16);
-              const atts = scheduleAttractionsForDay(catalog, currentCity, currentDateStr, hotelArrivalHHMM, 1, usedAttractionIds);
-              scheduledAttractions.push(...atts);
-            } else {
-              const cityChange = chosenIntercityTransfers.find(cit => cit.date === currentDateStr);
-              if (cityChange) {
-                const cityArrHHMM = cityChange.end.slice(11, 16);
-                const atts = scheduleAttractionsForDay(catalog, currentCity, currentDateStr, cityArrHHMM, 1, usedAttractionIds);
+              if (dayIdx === 0) {
+                const hotelArrivalStr = addMinutesToTime(arrFlight.arrival_local, 60 + chosenArrTransfer.duration_minutes);
+                const hotelArrivalHHMM = hotelArrivalStr.slice(11, 16);
+                const atts = scheduleAttractionsForDay(catalog, currentCity, currentDateStr, hotelArrivalHHMM, 1, usedAttractionIds, isCheapestMode, adults, children);
                 scheduledAttractions.push(...atts);
               } else {
-                const atts = scheduleAttractionsForDay(catalog, currentCity, currentDateStr, '09:30', 2, usedAttractionIds);
-                scheduledAttractions.push(...atts);
+                const cityChange = chosenIntercityTransfers.find(cit => cit.date === currentDateStr);
+                if (cityChange) {
+                  const cityArrHHMM = cityChange.end.slice(11, 16);
+                  const atts = scheduleAttractionsForDay(catalog, currentCity, currentDateStr, cityArrHHMM, 1, usedAttractionIds, isCheapestMode, adults, children);
+                  scheduledAttractions.push(...atts);
+                } else {
+                  // In cheapest mode: schedule 1 attraction/day prioritizing free sights
+                  // In standard mode: schedule 2 attractions/day
+                  const maxAtt = isCheapestMode ? 1 : 2;
+                  const atts = scheduleAttractionsForDay(catalog, currentCity, currentDateStr, '09:30', maxAtt, usedAttractionIds, isCheapestMode, adults, children);
+                  scheduledAttractions.push(...atts);
+                }
               }
             }
-          }
 
           // Build Items
           const items = [];
@@ -429,9 +480,13 @@ function buildAllPackages(catalog, request) {
 
           const totalInr = items.reduce((sum, it) => sum + it.price_inr, 0);
 
-          // G4 metric: total travel minutes = flight durations + intercity transfer durations
-          const travelMinutes = arrFlight.duration_minutes + retFlight.duration_minutes +
-            chosenIntercityTransfers.reduce((sum, cit) => sum + cit.transfer.duration_minutes, 0);
+          // Total travel minutes across all transportation methods:
+          // Flight 1 + Arrival Transfer + Intercity Transfers + Departure Transfer + Flight 2
+          const travelMinutes = arrFlight.duration_minutes +
+            (chosenArrTransfer ? chosenArrTransfer.duration_minutes : 0) +
+            chosenIntercityTransfers.reduce((sum, cit) => sum + cit.transfer.duration_minutes, 0) +
+            (chosenRetTransfer ? chosenRetTransfer.duration_minutes : 0) +
+            retFlight.duration_minutes;
 
           // G4 metric: average hotel stars per night
           let starSum = 0;
@@ -468,6 +523,8 @@ function buildAllPackages(catalog, request) {
       }
     }
   }
+}
+}
 
   if (candidates.length === 0) {
     const reason = Array.from(failureReasons)[0] || 'No available packages fit all travel rules for the given inputs.';
@@ -505,8 +562,19 @@ function buildAllPackages(catalog, request) {
   // 1. Cheapest: lowest totalInr
   const cheapest = [...withinBudget].sort((a, b) => a.totalInr - b.totalInr)[0];
 
-  // 2. Fastest: least total travel time
-  const fastest = [...withinBudget].sort((a, b) => a.metrics.travelMinutes - b.metrics.travelMinutes)[0];
+  // 2. Fastest: least total travel time across all transportation methods (Flight 1 + Arrival Transfer + Intercity Transfers + Departure Transfer + Flight 2)
+  const sortedByTravel = [...withinBudget].sort((a, b) => {
+    if (a.metrics.travelMinutes !== b.metrics.travelMinutes) {
+      return a.metrics.travelMinutes - b.metrics.travelMinutes;
+    }
+    return a.totalInr - b.totalInr;
+  });
+
+  // Pick fastest (prefer a distinct package from cheapest if multiple options exist):
+  let fastest = sortedByTravel[0];
+  if (fastest.packageId === cheapest.packageId && sortedByTravel.length > 1) {
+    fastest = sortedByTravel.find(p => p.packageId !== cheapest.packageId) || sortedByTravel[0];
+  }
 
   // 3. Best Rated: highest average hotel stars per night
   const bestRated = [...withinBudget].sort((a, b) => {
@@ -538,14 +606,13 @@ function buildAllPackages(catalog, request) {
       package: fastest,
     });
   } else if (withinBudget.length >= 2) {
-    // Pick the second cheapest or second fastest as alternative
-    const second = withinBudget.find(p => p.packageId !== cheapest.packageId);
+    const second = sortedByTravel.find(p => p.packageId !== cheapest.packageId);
     if (second) {
       packageCards.push({
         category: 'fastest',
-        title: 'Alternative Option',
-        badge: '⚡ Alternate Route',
-        description: 'Balanced duration and route configuration.',
+        title: 'Fastest',
+        badge: '⚡ Least Travel Time',
+        description: 'Quickest flight & transit durations to maximize your holiday.',
         package: second,
       });
     }
@@ -582,6 +649,7 @@ function buildAllPackages(catalog, request) {
       bestRated,
     },
     totalPackagesFound: withinBudget.length,
+    allWithinBudget: withinBudget,
   };
 }
 
