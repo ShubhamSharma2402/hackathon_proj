@@ -1,133 +1,116 @@
-# Problem 1: Holiday Package → Build My Holiday ✈️
+# Build My Holiday ✈️
 
-A full-stack web application that automatically builds, customizes, confirms, and exports complete holiday travel packages adhering strictly to all travel rules in Section 4.
+> Autonomous, rule-based holiday itinerary and package generation engine adhering strictly to all Section 4 constraints.
 
 ---
 
-## 🚀 How to Start the App (1 Command)
+## 🚀 Quick Start (Commands to Run)
 
 ### Prerequisites
-- Node.js (v18+)
-- MongoDB (running locally on port 27017, or auto-falls back to persistent local storage)
+- **Node.js**: v18 or higher
+- **MongoDB**: (Optional) MongoDB Atlas or local MongoDB instance on port 27017 (auto-falls back to persistent local storage in `backend/data/store.json`).
 
-### Start Command
+### 1. Start the Backend
 ```bash
 cd backend
 npm install
 npm start
 ```
+*Backend runs on **http://localhost:3001** (or port configured in `.env`).*
 
-The application will start on **http://localhost:3001**.
-Open your browser and navigate to:
-👉 **http://localhost:3001**
+### 2. Start the Frontend
+```bash
+cd frontend
+npm install
+npm run dev
+```
+*Frontend runs on **http://localhost:5173** (automatically proxies API requests to backend).*
 
-*(Alternatively, to run the automated end-to-end verification test suite: `node test-flow.js`)*
+*(Alternatively, the compiled production build is served directly by the backend at `http://localhost:3001`)*.
 
 ---
 
-## 🏛️ System Architecture
+## 🏛️ Code Architecture
 
 ```
 flight-project/
 ├── backend/
-│   ├── public/                      # Responsive frontend web application (Single Page App)
-│   │   ├── index.html               # Main user interface (Form, Timeline, Modals)
-│   │   └── app.js                   # Client state management, API calls, event handlers
+│   ├── data/catalog/            # Catalog datasets (destinations, flights, hotels, rooms, transfers, attractions)
+│   ├── data/store.json          # Persisted state fallback (packages & confirmed reservations)
 │   ├── src/
-│   │   ├── catalog/
-│   │   │   └── loader.js            # O(1) in-memory maps loaded once from JSON catalog files
-│   │   ├── db/
-│   │   │   ├── connection.js        # Mongoose / MongoDB connection
-│   │   │   ├── models/              # Package & Reservation Mongoose schemas
-│   │   │   └── storage.js           # Dual-layer persistent storage (MongoDB + local JSON fallback)
-│   │   ├── engine/                  # Core Business Logic & Rule Enforcement
-│   │   │   ├── cityPlanner.js       # City permutation & night partition solver
+│   │   ├── catalog/loader.js    # In-memory O(1) Map lookups loaded once at startup
+│   │   ├── db/                  # MongoDB Mongoose connection & models (Package & Reservation)
+│   │   ├── engine/              # Core rule-based calculation & constraint algorithms
+│   │   │   ├── cityPlanner.js       # Hamiltonian path search & integer night partition solver
 │   │   │   ├── flightPicker.js      # Outbound & return flight matcher (airports, dates, seats)
-│   │   │   ├── hotelPicker.js       # Hotel & room type solver (k rooms capacity & nightly availability)
-│   │   │   ├── transferPicker.js    # Airport & intercity transfers with service window checks
-│   │   │   ├── attractionScheduler.js# Non-overlapping attraction scheduler matching open hours
-│   │   │   ├── pricer.js            # Strict pricing engine using Section 4 mathematical formulas
-│   │   │   ├── packageValidator.js  # Independent 24-rule verification engine
-│   │   │   └── packageBuilder.js    # Master orchestrator (cheapest, fastest, best-rated variants)
-│   │   ├── routes/
-│   │   │   ├── catalog.js           # Form data & filtering endpoints
-│   │   │   ├── packages.js          # POST build, GET by id, PATCH hotel/flight/attractions, confirm, export
-│   │   │   └── reservations.js      # Lookup confirmed bookings by 10-digit number
-│   │   └── server.js                # Express server entry point
-│   ├── test-flow.js                 # Complete automated test suite covering M1-M8
-│   └── package.json
-└── README.md
+│   │   │   ├── hotelPicker.js       # Capacity solver (k rooms formula) & nightly availability check
+│   │   │   ├── transferPicker.js    # Airport & intercity transfers with operating window validation
+│   │   │   ├── attractionScheduler.js # Daily attraction scheduler (1–2 on full days, 0 on departure)
+│   │   │   ├── pricer.js            # Pricing formulas per catalog pricing rules
+│   │   │   ├── packageValidator.js  # 24-rule independent validation engine
+│   │   │   └── packageBuilder.js    # Master orchestrator generating Cheapest, Fastest, Best Rated
+│   │   ├── routes/              # Express API endpoints (/api/catalog, /api/packages, /api/reservations)
+│   │   └── server.js            # Express server entry point
+├── frontend/
+│   ├── src/
+│   │   ├── api/client.js        # Axios API client wrapper
+│   │   ├── components/
+│   │   │   └── PackageEditor.jsx# Interactive Phase B package customizer with live cascading warnings
+│   │   ├── pages/
+│   │   │   ├── Home.jsx             # Trip request form with live validation & 1-click test presets
+│   │   │   ├── PackagePage.jsx      # 3 package profile cards, G3 city switcher, & day-by-day timeline
+│   │   │   └── ReservationPage.jsx  # 10-digit booking lookup, cost tracking, & package customizer
+│   │   └── App.jsx
+├── README.md
 ```
 
 ---
 
-## 🗺️ City Rule Implementation
-- **Rule Constraints:**
-  - Trip length: 3 to 10 nights.
-  - All cities must belong to the chosen destination country.
-  - Each city in the itinerary has **at least 2 consecutive nights**.
-  - Each city appears **at most once** in the plan.
-  - Consecutive cities must have a valid transfer link between them (from `destinations.json`).
-- **Algorithm:**
-  - Backtracking search finds all Hamiltonian paths of length $1 \le k \le \lfloor \text{nights}/2 \rfloor$.
-  - Generates integer partitions of total nights into $k$ parts where each part $\ge 2$.
-  - Multi-city itineraries are prioritized for longer trips, and users can switch between valid city permutations.
+## ✨ Features Implemented
+
+### 1. Must-Have Requirements (M1 – M8)
+- **M1: Request Form**: Input departure city, destination country, start date, nights (2–10), adults, children + ages, and budget. Features 1-click quick presets (`Menon Family` & `UAE Trip`).
+- **M2: Complete Package Generation**: Deterministic constraint solver builds a complete package (flights, airport transfers, hotels, intercity transfers, attractions).
+- **M3: Strict Section 4 Rule Compliance**: All 24 rules (dates, flights, hotel room capacities, transfer pickup buffers, attraction limits) verified on initial build and after every modification.
+- **M4: Day-by-Day Timeline**: Chronological itinerary view displaying flights, hotel check-ins, transfers, and attractions with duration and image previews.
+- **M5: Total Cost & Budget Gauge**: Live cost in INR, remaining budget savings or overage badge, and Section 6 trip JSON export.
+- **M6: In-Depth Package Customization**: Travelers can swap hotels, change flights, and add or remove attractions with real-time recalculation.
+- **M7: Confirmed Reservation & Lookup**: Generates a 10-digit reservation reference. Permanently persisted in MongoDB and searchable anytime in **Find Reservation** (even across server restarts).
+- **M8: Budget Too Small Handler**: When no package fits the budget, calculates the cheapest possible package, cost deficit, and actionable suggestions.
+
+### 2. Good-to-Have Requirements (G1 – G4)
+- **G1: Cascading Change Warnings**:
+  - **Hotel Area Mismatch**: Warns if a new hotel's area (e.g. Shinjuku) conflicts with scheduled airport transfers (e.g. Ueno).
+  - **Flight Timing Conflicts**: Alerts if flight times fall outside transfer operating hours or conflict with hotel check-in/out windows.
+- **G2: Real-Time Price Differences ($\Delta$ ₹)**: Every swap option explicitly shows the cost delta (`+₹...` or `-₹...`) against the current selection.
+- **G3: Alternative City Plan Switcher**: Displays all valid multi-city distributions for the destination country and duration. Provides 1-click recalculation and instant timeline re-rendering.
+- **G4: Three Distinct Package Profiles**:
+  - 💰 **Cheapest**: Lowest total package price in INR.
+  - ⚡ **Fastest**: Shortest total travel time across all transportation methods:
+    $$\text{Travel Time} = \text{Flight 1} + \text{Arrival Transfer} + \sum \text{Intercity Transfers} + \text{Departure Transfer} + \text{Flight 2}$$
+  - ⭐ **Best Rated**: Highest average hotel star rating per night within budget.
+
+### 3. Plan Flexibility & Cost Tracking (Phase B)
+- **Post-Confirmation Customization**: Bookings retrieved via 10-digit reference in **Find Reservation** can be customized directly.
+- **Budget Tracking**: Displays previous cost, updated cost, and exact difference (`+₹...` / `-₹...`) alongside the traveler's budget limit.
+- **Attraction Day Limits**: Strictly enforces 1–2 attractions on full days (disables removing the last attraction) and 0 attractions on departure day.
 
 ---
 
-## 📋 Features Completed
+## 📋 Section 4 Rule Summary
 
-### Must-Have Features (M1 to M8) — 100% Complete
-- **M1: Request Form** — All 7 request fields, dropdowns dynamically populated from `destinations.json`, live validation.
-- **M2: Build One Package** — Multi-step constraint solver builds complete package (flights, airport transfers, hotels, intercity transfers, attractions). Clear error reason when impossible.
-- **M3: Rules are Respected** — Every single rule in Section 4 is verified on build and after every modification.
-- **M4: Day-by-Day Plan** — Clean chronological timeline: outbound flights, airport pickups, hotels, scheduled attractions, intercity transfers, return airport transfers, return flights.
-- **M5: Total & Budget** — Live total in INR, remaining budget savings or overage badge. One-click JSON export in Section 6 format.
-- **M6: Change the Package** — Interactive modal dialogs to:
-  - Change hotel in a city (filtered by capacity and availability).
-  - Change arrival or return flight (auto-adjusts airport transfer pickup times).
-  - Add or remove attractions (schedules within open hours without overlap).
-- **M7: Confirm & Reservation Summary** — Generates unique 10-digit reservation number. Persists to MongoDB. Look up anytime on the "Find Reservation" tab, even after server restart. Invalid numbers display `"not found"`.
-- **M8: Budget Too Small** — When no package fits the budget, app displays the cheapest possible package, difference amount, and actionable suggestions.
-
-### Good-to-Have Features Reached
-- **G1: Cascading Changes** — Flight updates automatically recompute airport transfer pickup and drop-off times.
-- **G2: Price Difference** — Change modals display real-time price delta ($\Delta$ ₹) against current selection.
-- **G3: Change Cities** — Interactive route selector allows travelers to switch city combinations (e.g. Tokyo 6N vs Tokyo 2N + Kyoto 4N) and rebuilds the package on the fly.
-- **G4: Three Packages Selection** — The app calculates all possible valid packages across all flight, hotel, and transfer combinations and returns:
-  1. 💰 **The Cheapest** (lowest total price in INR).
-  2. ⚡ **The Fastest** (least total travel duration: sum of flight durations + all intercity transfer durations).
-  3. ⭐ **The Best Rated** (highest average hotel stars per night within budget; guest rating ignored per spec).
-  - On a tie, selects either one. If fewer than 3 packages fit within budget, shows available packages under applicable categories. The traveler selects one with a single click.
-
-### Source & Destination Validation (Edge Cases)
-- If a source or destination is entered that does not exist in the catalog (e.g., departure city outside BLR/DEL/BOM/MAA, or destination country outside Japan/UAE), the system returns a clear error message stating that there are no available packages for that route.
-
-### Stretch Features Reached
-- **S1: Quick Request** — Rule-based natural language parser extracts departure, country, dates, nights, travelers, and budget from plain text without external AI.
+| Category | Rule Specification |
+| :--- | :--- |
+| **Window** | Available travel dates strictly between **April 1 and April 20, 2027**. |
+| **Duration** | Trip duration between **2 and 10 nights**. |
+| **Cities** | All cities belong to destination country; each city has **at least 2 consecutive nights**. |
+| **Flights** | Non-stop flights only; arrival lands on start date; return departs on final day; seats $\ge$ travelers. |
+| **Hotels** | Exactly 1 hotel per city; $k$ rooms rule: $\text{adults} \le k \cdot \text{max\_adults}$, $\text{travelers} \le k \cdot (\text{max\_adults} + \text{max\_children})$, $\text{adults} \ge k$. |
+| **Transfers** | Airport pickup $\ge 60$ min after landing; departure pickup $\ge 180$ min before flight departure; operating hours respected. |
+| **Attractions** | 1–2 per full day; 0–1 on arrival/city-change days; strictly **0 on departure day**; non-overlapping. |
 
 ---
 
-## 🛡️ Persistence & Fault Tolerance
-- Packages and reservations are stored in **MongoDB** (`packages` and `reservations` collections).
-- When confirmed, an immutable snapshot is preserved in `reservations` under the unique 10-digit reservation number.
-- Even if MongoDB is temporarily unavailable or running in a sandboxed offline environment, a synchronized JSON fallback ensures 100% operational uptime without crashes.
-
----
-
-## 📝 Demo Walkthrough Script (12 Minutes)
-1. **00:00 - 01:00:** Open `http://localhost:3001`. Show the clean UI and empty form.
-2. **01:00 - 02:30:** Click `"Load Menon Family Preset"`. Review all 7 populated fields (BLR → Japan, 10 Apr 2027, 6N, 2 Adults + 1 Child age 6, ₹3,50,000 budget). Click **"Build Complete Holiday Package"**.
-3. **02:30 - 04:00:** Review day-by-day timeline:
-   - Flights with correct seats and local arrival date.
-   - Airport transfers booked 60m after arrival / 180m before departure.
-   - Hotel room fit with valid capacity for 3 travelers.
-   - 1-2 attractions per full day without schedule conflicts.
-   - Budget bar showing total under budget.
-4. **04:00 - 05:30:** Demonstrate customizations:
-   - Click **"Change Hotel"** → view price difference ($\pm$ ₹) → select alternate hotel.
-   - Click **"Add Attraction"** → pick sight → observe price and schedule update.
-5. **05:30 - 07:00:** Click **"Confirm Reservation"** → note the 10-digit number (e.g. `3935936909`).
-6. **07:00 - 08:30:** Click **"Download JSON"** → open downloaded file to show judges the exact Section 6 schema.
-7. **08:30 - 09:30:** Switch to **"Find Reservation"** tab → enter the 10-digit number → show instant retrieval from MongoDB. Enter an invalid number to show `"not found"`.
-8. **09:30 - 12:00:** Enter any custom judge requests (e.g., UAE destination, different nights, or small budget to trigger M8).
+## 🛡️ Persistence & Reliability
+- **Dual-Layer Persistence**: Packages and reservations are stored in MongoDB Atlas and mirrored to `backend/data/store.json`.
+- **Zero AI in Runtime Engine**: All pricing, scheduling, and validation are 100% deterministic and rule-based.

@@ -17,6 +17,8 @@ export const getItemsMeta     = ()            => api.get('/catalog/items-meta')
 // --- Packages ---
 export const buildPackage     = (request)     => api.post('/packages', request)
 export const getPackage       = (id)          => api.get(`/packages/${id}`)
+export const getChangeOptions = (id)          => api.get(`/packages/${id}/change-options`)
+export const changeCities     = (id, body)    => api.post(`/packages/${id}/change-cities`, body)
 export const changeHotel      = (id, body)    => api.patch(`/packages/${id}/hotel`, body)
 export const changeFlight     = (id, body)    => api.patch(`/packages/${id}/flight`, body)
 export const changeAttractions= (id, body)    => api.patch(`/packages/${id}/attractions`, body)

@@ -13,14 +13,14 @@ export default function Home({ navigate }) {
 
   // --- Form state ---
   const [form, setForm] = useState({
-    departureAirport: 'BLR',
-    country: 'Japan',
-    startDate: '2027-04-10',
-    nights: 6,
-    adults: 2,
-    children: 1,
-    childAges: [6],
-    budgetInr: 350000,
+    departureAirport: '',
+    country: '',
+    startDate: '',
+    nights: 2,
+    adults: 1,
+    children: 0,
+    childAges: [],
+    budgetInr: '',
   })
 
   // --- UI state ---
@@ -90,8 +90,10 @@ export default function Home({ navigate }) {
     if (!form.departureAirport.trim()) errs.departureAirport = 'Enter or select a departure city'
     if (!form.country.trim()) errs.country = 'Enter or select a destination country'
     if (!form.startDate) errs.startDate = 'Enter a start date'
-    if (form.nights < 2 || form.nights > 10) errs.nights = 'Nights must be between 2 and 10'
-    if (form.adults < 1) errs.adults = 'At least 1 adult required'
+    const nightsNum = Number(form.nights)
+    if (isNaN(nightsNum) || nightsNum < 2 || nightsNum > 10) errs.nights = 'Nights must be between 2 and 10'
+    const adultsNum = Number(form.adults)
+    if (isNaN(adultsNum) || adultsNum < 1) errs.adults = 'At least 1 adult required'
     const b = Number(form.budgetInr) || 0
     if (b <= 0) errs.budgetInr = 'Budget must be greater than 0'
     form.childAges.forEach((age, i) => {
@@ -113,7 +115,13 @@ export default function Home({ navigate }) {
     setError(null)
 
     try {
-      const res = await buildPackage(form)
+      const payload = {
+        ...form,
+        nights: Number(form.nights),
+        adults: Number(form.adults),
+        budgetInr: Number(form.budgetInr),
+      }
+      const res = await buildPackage(payload)
       const data = res.data
 
       if (data.status === 'ERROR') {
@@ -271,7 +279,10 @@ export default function Home({ navigate }) {
               <input
                 type="number"
                 value={form.nights}
-                onChange={e => setForm(f => ({ ...f, nights: parseInt(e.target.value) || 2 }))}
+                onChange={e => {
+                  const val = e.target.value;
+                  setForm(f => ({ ...f, nights: val === '' ? '' : parseInt(val, 10) }));
+                }}
                 min="2" max="10"
                 className="input-base font-semibold"
               />
@@ -287,7 +298,10 @@ export default function Home({ navigate }) {
               <input
                 type="number"
                 value={form.adults}
-                onChange={e => setForm(f => ({ ...f, adults: parseInt(e.target.value) || 1 }))}
+                onChange={e => {
+                  const val = e.target.value;
+                  setForm(f => ({ ...f, adults: val === '' ? '' : parseInt(val, 10) }));
+                }}
                 min="1" max="10"
                 className="input-base font-semibold"
               />

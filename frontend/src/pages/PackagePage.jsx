@@ -7,12 +7,14 @@
 // - Download JSON [Section 6] & Confirm Reservation [M7]
 
 import React, { useState, useEffect } from 'react';
-import { getPackage, confirmPackage, changeHotel, changeFlight, changeAttractions, getItemsMeta } from '../api/client.js';
+import { getPackage, confirmPackage, changeHotel, changeFlight, changeAttractions, changeCities, getChangeOptions, getItemsMeta } from '../api/client.js';
 
 export default function PackagePage({ packageId, navigate }) {
   const [pkg, setPkg] = useState(null);
   const [packageCards, setPackageCards] = useState([]);
   const [cityPlans, setCityPlans] = useState([]);
+  const [switchingCityPlan, setSwitchingCityPlan] = useState(false);
+  const [cityPlanSuccess, setCityPlanSuccess] = useState(null);
   const [budgetWarning, setBudgetWarning] = useState(null);
   const [loading, setLoading] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -180,6 +182,15 @@ export default function PackagePage({ packageId, navigate }) {
         }
       })
       .catch(() => setError('Could not load package.'));
+
+    getChangeOptions(id)
+      .then(res => {
+        if (res.data?.availableCityPlans) {
+          setCityPlans(res.data.availableCityPlans);
+          localStorage.setItem('bmh_available_city_plans', JSON.stringify(res.data.availableCityPlans));
+        }
+      })
+      .catch(() => {});
   }, [packageId]);
 
   if (loading && !pkg) {
@@ -209,6 +220,25 @@ export default function PackagePage({ packageId, navigate }) {
     localStorage.setItem('bmh_current_package', JSON.stringify(card.package));
     if (navigate) {
       navigate('package', card.package.packageId);
+    }
+  }
+
+  async function handleSwitchCityPlan(plan) {
+    if (!pkg?.packageId) return;
+    setSwitchingCityPlan(true);
+    setCityPlanSuccess(null);
+    try {
+      const res = await changeCities(pkg.packageId, { cities: plan.cities, nights: plan.nights });
+      const newPkg = res.data.package;
+      setPkg(newPkg);
+      localStorage.setItem('bmh_current_pkg_id', newPkg.packageId);
+      localStorage.setItem('bmh_current_package', JSON.stringify(newPkg));
+      setCityPlanSuccess(`Successfully switched itinerary to ${plan.label || plan.cities.join(' → ')}!`);
+      setTimeout(() => setCityPlanSuccess(null), 4000);
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to switch city plan.');
+    } finally {
+      setSwitchingCityPlan(false);
     }
   }
 
@@ -461,6 +491,71 @@ export default function PackagePage({ packageId, navigate }) {
             >
               {confirming ? 'Confirming Reservation...' : 'Confirm Reservation'}
             </button>
+          </div>
+        )}
+
+        {/* Alternative City Plan Switcher (G3) */}
+        {cityPlans && cityPlans.length > 1 && (
+          <div className="pt-4 border-t border-border-subtle space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-primary flex items-center gap-1.5">
+                  <span>🏙️</span>
+                  <span>Alternative City Itineraries (G3)</span>
+                </h3>
+                <p className="text-[11px] text-muted">
+                  Switch between valid city distributions for {pkg.request.country} ({pkg.request.nights} Nights) with 1 click.
+                </p>
+              </div>
+              <span className="badge-neutral text-[10px]">
+                {cityPlans.length} Valid Routes
+              </span>
+            </div>
+
+            {cityPlanSuccess && (
+              <div className="bg-semantic-successBg border border-semantic-successBorder text-semantic-success p-2.5 rounded-lg text-xs flex items-center gap-2">
+                <span>✓</span>
+                <span className="font-medium">{cityPlanSuccess}</span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+              {cityPlans.map((plan, pIdx) => {
+                const isCurrent = plan.cities?.length === pkg.cityPlan?.length &&
+                  plan.cities?.every((c, i) => c === pkg.cityPlan[i]) &&
+                  (!plan.nights || plan.nights.every((n, i) => n === (pkg.nightsPerCity?.[plan.cities[i]] || 0)));
+                const label = plan.label || plan.cities?.map((c, i) => `${c} (${plan.nights?.[i] || ''}N)`).join(' → ');
+
+                return (
+                  <div
+                    key={pIdx}
+                    className={`border rounded-lg p-2.5 flex items-center justify-between gap-2 text-xs transition-all ${
+                      isCurrent
+                        ? 'border-accent bg-accent-tint/40 ring-1 ring-accent'
+                        : 'border-border bg-surface hover:border-accent/40'
+                    }`}
+                  >
+                    <div className="min-w-0">
+                      <div className="font-semibold text-primary truncate" title={label}>
+                        {label}
+                      </div>
+                      <div className="text-[10px] text-muted">
+                        {isCurrent ? 'Current Active Itinerary' : `${plan.cities?.length} City stay`}
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={isCurrent || switchingCityPlan}
+                      onClick={() => handleSwitchCityPlan(plan)}
+                      className={isCurrent ? 'btn-secondary text-[11px] py-1 px-2.5 opacity-60 cursor-default' : 'btn-primary text-[11px] py-1 px-2.5'}
+                    >
+                      {isCurrent ? 'Active' : switchingCityPlan ? '...' : 'Switch'}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 
