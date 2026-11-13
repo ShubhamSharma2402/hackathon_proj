@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { getReservation } from '../api/client.js';
 
 export default function ReservationPage({ reservationNumber, navigate }) {
-  const [num, setNum] = useState(reservationNumber || '');
+  const [num, setNum] = useState(() => reservationNumber || localStorage.getItem('bmh_confirmed_reservation_number') || '');
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);

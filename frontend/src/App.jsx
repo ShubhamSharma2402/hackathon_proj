@@ -56,21 +56,37 @@ class ErrorBoundary extends Component {
 
 export default function App() {
   const [currentTab, setCurrentTab] = useState('home')
-  const [activePackageId, setActivePackageId] = useState(null)
-  const [activeResNumber, setActiveResNumber] = useState(null)
+  const [activePackageId, setActivePackageId] = useState(() => localStorage.getItem('bmh_current_pkg_id'))
+  const [activeResNumber, setActiveResNumber] = useState(() => localStorage.getItem('bmh_confirmed_reservation_number'))
 
   function navigate(view, param = null) {
     if (view === 'package' || view.startsWith('/package/')) {
-      const id = param || view.split('/package/')[1]
-      setActivePackageId(id)
+      const id = param || view.split('/package/')[1] || localStorage.getItem('bmh_current_pkg_id')
+      if (id) {
+        setActivePackageId(id)
+        localStorage.setItem('bmh_current_pkg_id', id)
+      }
       setCurrentTab('package')
     } else if (view === 'reservation' || view.startsWith('/reservation/')) {
-      const num = param || view.split('/reservation/')[1]
-      setActiveResNumber(num)
+      const num = param || view.split('/reservation/')[1] || localStorage.getItem('bmh_confirmed_reservation_number')
+      if (num) {
+        setActiveResNumber(num)
+        localStorage.setItem('bmh_confirmed_reservation_number', num)
+      }
       setCurrentTab('reservation')
     } else {
       setCurrentTab('home')
     }
+  }
+
+  function handleOpenItinerary() {
+    const id = localStorage.getItem('bmh_current_pkg_id') || activePackageId
+    navigate('package', id)
+  }
+
+  function handleOpenReservation() {
+    const num = localStorage.getItem('bmh_confirmed_reservation_number') || activeResNumber
+    navigate('reservation', num)
   }
 
   return (
@@ -79,7 +95,7 @@ export default function App() {
       <header className="bg-indigo-600 text-white shadow sticky top-0 z-40">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center space-x-3 cursor-pointer" onClick={() => setCurrentTab('home')}>
-            <span class="text-2xl">✈️</span>
+            <span className="text-2xl">✈️</span>
             <div>
               <h1 className="text-xl font-bold tracking-tight leading-none">Build My Holiday</h1>
               <p className="text-xs text-indigo-200 mt-0.5">Automated Multi-City Travel Packages</p>
@@ -93,13 +109,13 @@ export default function App() {
               Plan Trip
             </button>
             <button
-              onClick={() => setCurrentTab('package')}
+              onClick={handleOpenItinerary}
               className={`px-3 py-1.5 rounded-lg font-medium transition ${currentTab === 'package' ? 'bg-indigo-700 text-white font-bold' : 'hover:bg-indigo-700 text-indigo-100'}`}
             >
               Itinerary
             </button>
             <button
-              onClick={() => setCurrentTab('reservation')}
+              onClick={handleOpenReservation}
               className={`px-3 py-1.5 rounded-lg font-medium transition ${currentTab === 'reservation' ? 'bg-indigo-700 text-white font-bold' : 'hover:bg-indigo-700 text-indigo-100'}`}
             >
               Find Reservation

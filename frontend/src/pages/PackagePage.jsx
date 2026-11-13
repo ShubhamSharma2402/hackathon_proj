@@ -19,10 +19,11 @@ export default function PackagePage({ packageId, navigate }) {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const id = packageId || localStorage.getItem('bmh_current_pkg_id');
+    const id = localStorage.getItem('bmh_current_pkg_id') || packageId;
     const cachedCards = localStorage.getItem('bmh_package_cards');
     const cachedPlans = localStorage.getItem('bmh_available_city_plans');
     const warning = localStorage.getItem('bmh_budget_warning');
+    const cachedPkg = localStorage.getItem('bmh_current_package');
 
     if (cachedCards) {
       try { setPackageCards(JSON.parse(cachedCards)); } catch (e) {}
@@ -33,18 +34,41 @@ export default function PackagePage({ packageId, navigate }) {
     if (warning) {
       setBudgetWarning(warning);
     }
+    if (cachedPkg) {
+      try {
+        const parsed = JSON.parse(cachedPkg);
+        if (parsed && (!id || parsed.packageId === id)) {
+          setPkg(parsed);
+        }
+      } catch (e) {}
+    }
 
     if (!id) return;
-    setLoading(true);
     getPackage(id)
       .then(res => {
-        setPkg(res.data);
+        const fetched = res.data;
+        if (fetched) {
+          setPkg(fetched);
+          localStorage.setItem('bmh_current_pkg_id', fetched.packageId);
+          localStorage.setItem('bmh_current_package', JSON.stringify(fetched));
+
+          // Synchronize status into cards and save to localStorage
+          setPackageCards(prevCards => {
+            const newCards = (prevCards || []).map(c => {
+              if (c?.package?.packageId === fetched.packageId) {
+                return { ...c, package: fetched };
+              }
+              return c;
+            });
+            localStorage.setItem('bmh_package_cards', JSON.stringify(newCards));
+            return newCards;
+          });
+        }
       })
-      .catch(() => setError('Could not load package.'))
-      .finally(() => setLoading(false));
+      .catch(() => setError('Could not load package.'));
   }, [packageId]);
 
-  if (loading) {
+  if (loading && !pkg) {
     return <div className="p-12 text-center text-slate-500 font-bold">Loading holiday package...</div>;
   }
 
@@ -68,6 +92,10 @@ export default function PackagePage({ packageId, navigate }) {
     if (!card || !card.package) return;
     setPkg(card.package);
     localStorage.setItem('bmh_current_pkg_id', card.package.packageId);
+    localStorage.setItem('bmh_current_package', JSON.stringify(card.package));
+    if (navigate) {
+      navigate('package', card.package.packageId);
+    }
   }
 
   async function handleConfirmReservation(targetPkgId) {
@@ -91,21 +119,30 @@ export default function PackagePage({ packageId, navigate }) {
       setPkg(fullUpdated);
       localStorage.setItem('bmh_current_pkg_id', fullUpdated.packageId);
       localStorage.setItem('bmh_current_package', JSON.stringify(fullUpdated));
+      localStorage.setItem('bmh_confirmed_reservation_number', resNum);
 
-      // Update packageCards state so the confirmed card reflects BOOKED
-      setPackageCards(prevCards => (prevCards || []).map(c => {
-        if (c?.package?.packageId === fullUpdated.packageId) {
-          return {
-            ...c,
-            package: {
-              ...c.package,
-              ...fullUpdated,
-              metrics: fullUpdated.metrics || c.package?.metrics || { travelMinutes: 0, avgHotelStars: 3 },
-            },
-          };
-        }
-        return c;
-      }));
+      // Update packageCards state AND localStorage so the confirmed card reflects BOOKED
+      setPackageCards(prevCards => {
+        const newCards = (prevCards || []).map(c => {
+          if (c?.package?.packageId === fullUpdated.packageId) {
+            return {
+              ...c,
+              package: {
+                ...c.package,
+                ...fullUpdated,
+                metrics: fullUpdated.metrics || c.package?.metrics || { travelMinutes: 0, avgHotelStars: 3 },
+              },
+            };
+          }
+          return c;
+        });
+        localStorage.setItem('bmh_package_cards', JSON.stringify(newCards));
+        return newCards;
+      });
+
+      if (navigate) {
+        navigate('package', fullUpdated.packageId);
+      }
 
       alert(`✓ Reservation Confirmed!\n\nReservation Number: ${resNum}\n\nDownload JSON is now enabled at the top right of your itinerary.`);
     } catch (e) {
