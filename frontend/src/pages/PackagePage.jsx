@@ -157,74 +157,80 @@ export default function PackagePage({ packageId, navigate }) {
 
       {/* Budget Too Small Banner (M8) */}
       {budgetWarning && (
-        <div className="bg-amber-50 border border-amber-300 text-amber-900 p-4 rounded-2xl text-xs flex items-start space-x-2">
-          <span className="text-base">💡</span>
+        <div className="bg-semantic-warningBg border border-semantic-warningBorder text-semantic-warning p-4 rounded-xl text-xs flex items-start space-x-2.5 shadow-sm">
+          <span className="font-bold text-sm leading-none mt-0.5">!</span>
           <div>
-            <div className="font-bold text-sm">Budget Too Small (M8 Suggestion)</div>
-            <div className="mt-0.5">{budgetWarning}</div>
+            <div className="font-semibold text-xs">Budget Notice (Section 4 / M8)</div>
+            <div className="mt-0.5 leading-relaxed">{budgetWarning}</div>
           </div>
         </div>
       )}
 
-      {/* Top Header Card & Budget Bar (M5) */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+      {/* Top Header Card & Budget Summary */}
+      <div className="card-base space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-border-subtle">
           <div>
             <div className="flex items-center space-x-2">
-              <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-bold ${pkg.status === 'BOOKED' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+              <span className={pkg.status === 'BOOKED' ? 'badge-success' : 'badge-warning'}>
                 {pkg.status}
               </span>
-              <span className="text-xs text-slate-400 font-mono">ID: {(pkg.packageId || '').slice(0, 8)}...</span>
+              <span className="text-xs text-subtle font-mono">ID: {(pkg.packageId || '').slice(0, 8)}</span>
             </div>
-            <h2 className="text-2xl font-black text-slate-900 mt-1">{pkg.request?.country || 'Trip'}: {(pkg.cityPlan || []).join(' → ')}</h2>
-            <p className="text-xs text-slate-500 mt-0.5">
-              {pkg.request?.nights || 0} Nights ({pkg.request?.startDate || ''} to {pkg.items && pkg.items.length > 0 ? (pkg.items[pkg.items.length - 1]?.start?.slice(0, 10) || '') : ''}) • {pkg.request?.adults || 0} Adults{pkg.request?.children ? `, ${pkg.request.children} Children` : ''}
+            <h1 className="text-xl font-semibold tracking-tight text-primary mt-1.5">
+              {pkg.request?.country || 'Holiday'}: {(pkg.cityPlan || []).join(' → ')}
+            </h1>
+            <p className="text-xs text-muted mt-0.5">
+              {pkg.request?.nights || 0} Nights ({pkg.request?.startDate || ''} to {pkg.items && pkg.items.length > 0 ? (pkg.items[pkg.items.length - 1]?.start?.slice(0, 10) || '') : ''}) &bull; {pkg.request?.adults || 0} Adults{pkg.request?.children ? `, ${pkg.request.children} Children` : ''}
             </p>
           </div>
 
-          {/* Download JSON & Reservation Number: Only rendered in top header AFTER booking (M7 requirement) */}
+          {/* Download JSON & Reservation Badge (Only visible when booked) */}
           {pkg.status === 'BOOKED' && (
             <div className="flex flex-wrap items-center gap-2">
               <a
                 href={`/api/packages/${pkg.packageId}/export`}
                 download={`holiday-package-${pkg.packageId}.json`}
-                className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 transition flex items-center space-x-1.5"
+                className="btn-secondary text-xs py-1.5 px-3"
               >
                 <span>📥 Download JSON</span>
               </a>
-              <div className="bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold text-xs px-3 py-2 rounded-xl flex items-center space-x-1">
-                <span>Reservation #{pkg.reservationNumber}</span>
+              <div className="badge-accent font-mono text-xs py-1 px-3">
+                Reservation #{pkg.reservationNumber}
               </div>
             </div>
           )}
         </div>
 
-        {/* Budget Numbers */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4">
-          <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-100">
-            <div className="text-xs text-slate-500 font-semibold">Total Cost</div>
-            <div className="text-2xl font-black text-slate-900">₹{total.toLocaleString('en-IN')}</div>
+        {/* Budget Numbers (Nested Surface) */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="bg-surface-nested p-4 rounded-lg border border-border">
+            <span className="text-xs text-muted font-medium">Total Package Cost</span>
+            <div className="text-xl font-semibold text-primary mt-1">₹{total.toLocaleString('en-IN')}</div>
           </div>
-          <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-100">
-            <div className="text-xs text-slate-500 font-semibold">Your Budget</div>
-            <div className="text-2xl font-black text-slate-700">₹{budget.toLocaleString('en-IN')}</div>
+          <div className="bg-surface-nested p-4 rounded-lg border border-border">
+            <span className="text-xs text-muted font-medium">Your Budget</span>
+            <div className="text-xl font-semibold text-secondary mt-1">₹{budget.toLocaleString('en-IN')}</div>
           </div>
-          <div className={`p-3.5 rounded-xl border ${diff >= 0 ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-red-50 border-red-100 text-red-700'}`}>
-            <div className="text-xs font-semibold">{diff >= 0 ? 'Under Budget (Savings)' : 'Over Budget'}</div>
-            <div className="text-2xl font-black">₹{Math.abs(diff).toLocaleString('en-IN')}</div>
+          <div className={`p-4 rounded-lg border ${diff >= 0 ? 'bg-semantic-successBg border-semantic-successBorder' : 'bg-semantic-errorBg border-semantic-errorBorder'}`}>
+            <span className={`text-xs font-medium ${diff >= 0 ? 'text-semantic-success' : 'text-semantic-error'}`}>
+              {diff >= 0 ? 'Under Budget (Savings)' : 'Over Budget'}
+            </span>
+            <div className={`text-xl font-semibold mt-1 ${diff >= 0 ? 'text-semantic-success' : 'text-semantic-error'}`}>
+              ₹{Math.abs(diff).toLocaleString('en-IN')}
+            </div>
           </div>
         </div>
 
         {/* 3 Calculated Package Options (G4) */}
         {packageCards && packageCards.length > 0 && (
-          <div className="mt-6 pt-5 border-t border-slate-100">
+          <div className="pt-4 border-t border-border-subtle">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="font-extrabold text-xs uppercase tracking-wider text-slate-700 flex items-center">
-                ✨ Calculated Package Options ({packageCards.length} Options Generated)
-              </h3>
-              <span className="text-[11px] text-slate-400 font-medium">Click any card to view its day-by-day plan</span>
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-secondary">
+                Calculated Options ({packageCards.length} Generated)
+              </h2>
+              <span className="text-[11px] text-muted">Select an option to preview its complete day-by-day plan</span>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {packageCards.map((card, idx) => {
                 if (!card || !card.package) return null;
                 const isSelected = pkg?.packageId === card.package.packageId;
@@ -237,91 +243,92 @@ export default function PackagePage({ packageId, navigate }) {
                   <div
                     key={idx}
                     onClick={() => handleSelectCard(card)}
-                    className={`rounded-xl border p-4 transition cursor-pointer flex flex-col justify-between ${
+                    className={`rounded-lg border p-4 transition-all duration-150 cursor-pointer flex flex-col justify-between ${
                       isSelected
-                        ? 'border-indigo-600 bg-indigo-50/50 ring-2 ring-indigo-500 shadow-sm'
-                        : 'border-slate-200 bg-white hover:border-indigo-300'
+                        ? 'border-accent bg-surface ring-1 ring-accent shadow-card'
+                        : 'border-border bg-surface hover:bg-surface-nested/40 hover:border-border-strong'
                     }`}
                   >
                     <div>
                       <div className="flex items-center justify-between">
-                        <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                        <span className={
                           card.category === 'cheapest'
-                            ? 'bg-emerald-100 text-emerald-800'
+                            ? 'badge-success text-[10px]'
                             : card.category === 'fastest'
-                            ? 'bg-blue-100 text-blue-800'
-                            : 'bg-amber-100 text-amber-800'
-                        }`}>
+                            ? 'badge-info text-[10px]'
+                            : 'badge-warning text-[10px]'
+                        }>
                           {card.badge}
                         </span>
                         {isSelected && (
-                          <span className="text-[10px] font-bold text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded">
+                          <span className="badge-accent text-[10px] py-0 px-2 font-medium">
                             Active
                           </span>
                         )}
                       </div>
 
                       <div className="mt-3">
-                        <div className="text-2xl font-black text-slate-900">
+                        <div className="text-xl font-bold tracking-tight text-primary">
                           ₹{(card.package.totalInr || 0).toLocaleString('en-IN')}
                         </div>
-                        <p className="text-xs text-slate-500 font-medium mt-0.5">
+                        <p className="text-xs text-muted mt-0.5">
                           {(card.package.cityPlan || []).join(' → ')} ({card.package.request?.nights || 0} Nights)
                         </p>
                       </div>
 
-                      <div className="mt-3 space-y-1.5 text-xs text-slate-600 border-t border-slate-100 pt-2.5">
+                      <div className="mt-3 space-y-1.5 text-xs text-secondary border-t border-border-subtle pt-2.5">
                         <div className="flex items-center justify-between">
-                          <span className="text-slate-400">Total Travel Duration:</span>
-                          <span className="font-bold text-slate-800">{travelHours}h {travelMins}m</span>
+                          <span className="text-muted">Travel Duration:</span>
+                          <span className="font-medium text-primary">{travelHours}h {travelMins}m</span>
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-slate-400">Avg Hotel Rating:</span>
-                          <span className="font-bold text-amber-600">{stars} ★</span>
+                          <span className="text-muted">Avg Hotel Rating:</span>
+                          <span className="font-medium text-primary">{stars} ★</span>
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-slate-400">Total Items:</span>
-                          <span className="font-bold text-slate-800">{(card.package.items || []).length} items</span>
+                          <span className="text-muted">Activities & Stays:</span>
+                          <span className="font-medium text-primary">{(card.package.items || []).length} items</span>
                         </div>
                       </div>
                     </div>
 
-                    {isSelected ? (
-                      <div className="mt-4 space-y-2">
-                        <div className="w-full py-2 rounded-lg text-xs font-bold text-center bg-indigo-600 text-white shadow-sm flex items-center justify-center space-x-1">
-                          <span>Currently Viewing</span>
-                        </div>
-                        {pkg.status !== 'BOOKED' ? (
-                          <button
-                            type="button"
-                            disabled={confirming}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleConfirmReservation(card.package.packageId);
-                            }}
-                            className="w-full py-2.5 rounded-xl text-xs font-black text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-md transition flex items-center justify-center space-x-1.5 cursor-pointer"
-                          >
-                            <span>✓</span>
-                            <span>{confirming ? 'Confirming Reservation...' : 'Confirm Reservation'}</span>
-                          </button>
-                        ) : (
-                          <div className="w-full py-2 rounded-xl text-xs font-bold text-center bg-emerald-50 text-emerald-800 border border-emerald-300 flex items-center justify-center space-x-1">
-                            <span>✓ Reserved (#{pkg.reservationNumber})</span>
+                    <div className="mt-4 pt-2">
+                      {isSelected ? (
+                        <div className="space-y-2">
+                          <div className="w-full py-1 text-[11px] font-medium text-center rounded bg-accent-tint text-accent border border-accent-border">
+                            Currently Viewing
                           </div>
-                        )}
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleSelectCard(card);
-                        }}
-                        className="mt-4 w-full py-2.5 rounded-xl text-xs font-bold transition bg-slate-100 text-slate-700 hover:bg-slate-200"
-                      >
-                        Select This Package
-                      </button>
-                    )}
+                          {pkg.status !== 'BOOKED' ? (
+                            <button
+                              type="button"
+                              disabled={confirming}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleConfirmReservation(card.package.packageId);
+                              }}
+                              className="btn-primary w-full py-2 text-xs"
+                            >
+                              {confirming ? 'Confirming Reservation...' : 'Confirm Reservation'}
+                            </button>
+                          ) : (
+                            <div className="badge-success w-full py-1.5 text-xs font-medium justify-center">
+                              ✓ Reserved (#{pkg.reservationNumber})
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSelectCard(card);
+                          }}
+                          className="btn-secondary w-full py-1.5 text-xs"
+                        >
+                          Select This Package
+                        </button>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -331,15 +338,14 @@ export default function PackagePage({ packageId, navigate }) {
 
         {/* Fallback Confirm Button if no package cards present */}
         {(!packageCards || packageCards.length === 0) && pkg.status !== 'BOOKED' && (
-          <div className="mt-6 pt-4 border-t border-slate-100 flex justify-end">
+          <div className="pt-4 border-t border-border-subtle flex justify-end">
             <button
               type="button"
               disabled={confirming}
               onClick={() => handleConfirmReservation(pkg.packageId)}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-md transition flex items-center space-x-1.5"
+              className="btn-primary text-xs"
             >
-              <span>✓</span>
-              <span>{confirming ? 'Confirming Reservation...' : 'Confirm Reservation'}</span>
+              {confirming ? 'Confirming Reservation...' : 'Confirm Reservation'}
             </button>
           </div>
         )}
@@ -347,44 +353,49 @@ export default function PackagePage({ packageId, navigate }) {
       </div>
 
       {/* Day-by-Day Timeline (M4) */}
-      <div className="space-y-4">
-        <h3 className="font-bold text-slate-800 text-lg flex items-center">
-          📅 Day-by-Day Itinerary ({(pkg.items || []).length} Activities)
-        </h3>
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold tracking-tight text-primary">
+            Day-by-Day Itinerary ({(pkg.items || []).length} Activities)
+          </h2>
+          <span className="text-xs text-muted">Chronological order strictly validated</span>
+        </div>
 
-        <div className="space-y-3">
+        <div className="space-y-2">
           {(pkg.items || []).map((item, idx) => {
             if (!item) return null;
             const timeStr = item.start && item.start.includes('T') ? item.start.slice(11, 16) : (item.start || '');
             const endStr = item.end && item.end.includes('T') ? item.end.slice(11, 16) : (item.end || '');
 
-            let badgeColor = 'bg-slate-100 text-slate-700';
-            let icon = '🏷️';
-            if (item.type === 'flight') { badgeColor = 'bg-blue-100 text-blue-800'; icon = '✈️'; }
-            else if (item.type === 'transfer') { badgeColor = 'bg-emerald-100 text-emerald-800'; icon = '🚕'; }
-            else if (item.type === 'hotel') { badgeColor = 'bg-amber-100 text-amber-800'; icon = '🏨'; }
-            else if (item.type === 'attraction') { badgeColor = 'bg-purple-100 text-purple-800'; icon = '🏛️'; }
+            let badgeClass = 'badge-neutral';
+            if (item.type === 'flight') badgeClass = 'badge-info';
+            else if (item.type === 'transfer') badgeClass = 'badge-success';
+            else if (item.type === 'hotel') badgeClass = 'badge-warning';
+            else if (item.type === 'attraction') badgeClass = 'badge-accent';
 
             return (
-              <div key={idx} className="bg-white p-4 rounded-xl border border-slate-200 hover:border-slate-300 transition flex items-center justify-between">
+              <div 
+                key={idx} 
+                className="bg-surface p-3.5 rounded-lg border border-border shadow-card flex items-center justify-between transition-colors duration-150 hover:border-border-strong"
+              >
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 rounded-xl bg-slate-50 border flex items-center justify-center text-lg">
-                    {icon}
+                  <div className="w-8 h-8 rounded-md bg-surface-nested border border-border flex items-center justify-center text-xs font-semibold text-secondary">
+                    {idx + 1}
                   </div>
                   <div>
                     <div className="flex items-center space-x-2">
-                      <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${badgeColor}`}>
+                      <span className={`${badgeClass} text-[10px] px-2 py-0.5 uppercase tracking-wide`}>
                         {item.type}
                       </span>
-                      <span className="font-bold text-sm text-slate-800">{item.name}</span>
+                      <span className="text-xs font-semibold text-primary">{item.name}</span>
                     </div>
-                    <div className="text-xs text-slate-500 mt-1 flex flex-wrap items-center gap-2">
-                      <span>🕒 {timeStr}{endStr ? ` → ${endStr}` : ''}</span>
-                      <span>•</span>
-                      <span>📍 {item.city}</span>
+                    <div className="text-[11px] text-muted mt-0.5 flex flex-wrap items-center gap-2">
+                      <span>{timeStr}{endStr ? ` → ${endStr}` : ''}</span>
+                      <span>&bull;</span>
+                      <span>{item.city}</span>
                       {item.quantity && (
                         <>
-                          <span>•</span>
+                          <span>&bull;</span>
                           <span>Qty: {item.quantity}</span>
                         </>
                       )}
@@ -393,8 +404,8 @@ export default function PackagePage({ packageId, navigate }) {
                 </div>
 
                 <div className="text-right">
-                  <div className="font-black text-sm text-slate-900">
-                    ₹{item.price_inr.toLocaleString('en-IN')}
+                  <div className="text-xs font-semibold text-primary">
+                    ₹{(item.price_inr || 0).toLocaleString('en-IN')}
                   </div>
                 </div>
               </div>

@@ -1,12 +1,84 @@
-/* index.css — global styles */
-/* Tailwind base, components, utilities */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Simple base styling */
+:root {
+  --color-canvas: #FAFAF8;
+  --color-surface: #FFFFFF;
+  --color-surface-nested: #F4F5F2;
+  --color-surface-hover: #EDEDEA;
+  --color-primary: #191B19;
+  --color-secondary: #525651;
+  --color-muted: #767A74;
+  --color-subtle: #9B9F99;
+  
+  --color-accent: #237A57;
+  --color-accent-hover: #1B6447;
+  --color-accent-active: #155038;
+  --color-accent-tint: #EAF4EE;
+  --color-accent-border: #C8E3D5;
+  --focus-ring: rgba(35, 122, 87, 0.22);
+
+  --color-border: #E7E9E4;
+  --color-border-subtle: #EFEFEA;
+  --color-border-strong: #D4D7D0;
+
+  --shadow-card: 0 1px 3px rgba(25, 27, 25, 0.06), 0 1px 2px rgba(25, 27, 25, 0.04);
+  --shadow-dropdown: 0 4px 12px rgba(25, 27, 25, 0.06), 0 1px 3px rgba(25, 27, 25, 0.04);
+  --shadow-modal: 0 20px 48px -8px rgba(25, 27, 25, 0.18), 0 8px 16px -4px rgba(25, 27, 25, 0.08);
+}
+
 body {
-  font-family: system-ui, -apple-system, sans-serif;
-  background-color: #f8fafc;
-  color: #1e293b;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: var(--color-canvas);
+  color: var(--color-primary);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Reusable Component Classes */
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center font-medium text-sm text-white bg-accent hover:bg-accent-hover active:bg-accent-active rounded-lg px-4 py-2 transition duration-150 ease-out shadow-sm disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center font-medium text-sm text-primary bg-surface hover:bg-surface-nested active:bg-surface-hover border border-border rounded-lg px-4 py-2 transition duration-150 ease-out shadow-sm disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center font-medium text-sm text-secondary hover:text-primary hover:bg-surface-nested rounded-lg px-3 py-1.5 transition duration-150 ease-out;
+  }
+
+  .input-base {
+    @apply w-full bg-surface border border-border rounded-lg px-3.5 py-2 text-sm text-primary placeholder-subtle transition duration-150 ease-out focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20;
+  }
+
+  .card-base {
+    @apply bg-surface border border-border rounded-xl shadow-card p-6;
+  }
+
+  .badge-accent {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-accent-tint text-accent border border-accent-border;
+  }
+
+  .badge-success {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-semantic-successBg text-semantic-success border border-semantic-successBorder;
+  }
+
+  .badge-warning {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-semantic-warningBg text-semantic-warning border border-semantic-warningBorder;
+  }
+
+  .badge-error {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-semantic-errorBg text-semantic-error border border-semantic-errorBorder;
+  }
+
+  .badge-info {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-semantic-infoBg text-semantic-info border border-semantic-infoBorder;
+  }
+
+  .badge-neutral {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-surface-nested text-secondary border border-border;
+  }
 }

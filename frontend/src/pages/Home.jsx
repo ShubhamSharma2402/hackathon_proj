@@ -150,96 +150,104 @@ export default function Home({ navigate }) {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
 
-      {/* Preset Buttons for Demo */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-indigo-100 rounded-2xl p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* Header Intro */}
+      <div className="space-y-1">
+        <h1 className="text-xl font-semibold tracking-tight text-primary">Plan Your Holiday</h1>
+        <p className="text-sm text-secondary">
+          Configure your travel requirements. The engine calculates all valid flights, hotels, and transfers according to Section 4 rules.
+        </p>
+      </div>
+
+      {/* Demo Presets Card */}
+      <div className="bg-surface-nested border border-border rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
         <div>
-          <h3 className="font-bold text-indigo-950 text-sm flex items-center">
-            ⚡ Quick Demo Presets
-          </h3>
-          <p className="text-xs text-indigo-700 mt-0.5">
-            1-click test configurations for hackathon evaluation.
+          <div className="text-xs font-semibold text-primary flex items-center space-x-1.5">
+            <span className="w-2 h-2 rounded-full bg-accent"></span>
+            <span>Quick Test Presets</span>
+          </div>
+          <p className="text-xs text-muted mt-0.5">
+            1-click configurations for evaluation.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
             onClick={loadMenonPreset}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-sm transition"
+            className="btn-secondary text-xs py-1.5 px-3"
           >
-            Load Menon Family (BLR → Japan, 6N)
+            Menon Family (BLR → Japan, 6N)
           </button>
           <button
             type="button"
             onClick={loadUaePreset}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-sm transition"
+            className="btn-secondary text-xs py-1.5 px-3"
           >
-            Load UAE Trip (DEL → UAE, 5N)
+            UAE Trip (DEL → UAE, 5N)
           </button>
         </div>
       </div>
 
-      {/* Main Form */}
-      <div className="bg-white shadow-sm border border-slate-200 rounded-2xl p-6 md:p-8">
-        <h2 className="text-xl font-bold text-slate-800 mb-6">Plan Your Holiday</h2>
-
+      {/* Main Configuration Card */}
+      <div className="card-base">
         {error && (
-          <div className="bg-red-50 border border-red-300 text-red-800 px-4 py-3 rounded-xl mb-6 text-sm flex items-start space-x-2">
-            <span className="text-base">⚠️</span>
-            <div className="flex-1 font-medium">{error}</div>
+          <div className="bg-semantic-errorBg border border-semantic-errorBorder text-semantic-error px-4 py-3 rounded-lg mb-6 text-xs flex items-start space-x-2.5">
+            <span className="font-semibold text-sm leading-none mt-0.5">!</span>
+            <div className="flex-1 font-medium leading-relaxed">{error}</div>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
 
-            {/* Departure City: Editable Input + Dropdown (datalist) */}
+            {/* Departure City */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">
+              <label className="block text-xs font-medium text-secondary mb-1.5">
                 Departure City / Airport
-                <span className="text-slate-400 font-normal lowercase block">(choose from dropdown or type custom city)</span>
+                <span className="text-muted block font-normal text-[11px]">Select from dataset or type custom city</span>
               </label>
               <input
                 type="text"
                 list="departure-cities-list"
                 value={form.departureAirport}
                 onChange={set('departureAirport')}
-                placeholder="e.g. BLR, Bengaluru, Delhi, or custom"
-                className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm bg-white focus:ring-2 focus:ring-indigo-500 font-medium"
+                placeholder="e.g. BLR, DEL, BOM, MAA"
+                className="input-base"
               />
               <datalist id="departure-cities-list">
                 {departureCities.map(c => (
                   <option key={c.airport} value={c.airport}>{c.city} ({c.airport})</option>
                 ))}
               </datalist>
-              {formErrs.departureAirport && <p className="text-red-500 text-xs mt-1">{formErrs.departureAirport}</p>}
+              {formErrs.departureAirport && <p className="text-semantic-error text-xs mt-1">{formErrs.departureAirport}</p>}
             </div>
 
-            {/* Destination Country: Editable Input + Dropdown (datalist) */}
+            {/* Destination Country */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">
+              <label className="block text-xs font-medium text-secondary mb-1.5">
                 Destination Country
-                <span className="text-slate-400 font-normal lowercase block">(choose from dropdown or type custom country)</span>
+                <span className="text-muted block font-normal text-[11px]">Select from dataset or type custom country</span>
               </label>
               <input
                 type="text"
                 list="destination-countries-list"
                 value={form.country}
                 onChange={set('country')}
-                placeholder="e.g. Japan, United Arab Emirates, or custom"
-                className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm bg-white focus:ring-2 focus:ring-indigo-500 font-medium"
+                placeholder="e.g. Japan, United Arab Emirates"
+                className="input-base"
               />
               <datalist id="destination-countries-list">
                 {countries.map(c => (
                   <option key={c.code} value={c.name}>{c.name} ({c.code})</option>
                 ))}
               </datalist>
-              {formErrs.country && <p className="text-red-500 text-xs mt-1">{formErrs.country}</p>}
+              {formErrs.country && <p className="text-semantic-error text-xs mt-1">{formErrs.country}</p>}
             </div>
 
             {/* Holiday Start Date */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">
-                Holiday Start Date <span class="text-slate-400 font-normal lowercase">(arrival in destination)</span>
+              <label className="block text-xs font-medium text-secondary mb-1.5">
+                Holiday Start Date
+                <span className="text-muted block font-normal text-[11px]">Arrival day in destination</span>
               </label>
               <input
                 type="date"
@@ -247,91 +255,103 @@ export default function Home({ navigate }) {
                 onChange={set('startDate')}
                 min="2027-04-01"
                 max="2027-04-20"
-                className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500"
+                className="input-base"
               />
-              <p class="text-[11px] text-slate-500 mt-1">Available data window: 1 to 20 April 2027.</p>
-              {formErrs.startDate && <p className="text-red-500 text-xs mt-1">{formErrs.startDate}</p>}
+              <p className="text-[11px] text-muted mt-1">Available data window: 1 to 20 April 2027.</p>
+              {formErrs.startDate && <p className="text-semantic-error text-xs mt-1">{formErrs.startDate}</p>}
             </div>
 
             {/* Nights */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">
-                Nights <span className="text-slate-400 font-normal lowercase">(3 to 10 nights)</span>
+              <label className="block text-xs font-medium text-secondary mb-1.5">
+                Trip Duration (Nights)
+                <span className="text-muted block font-normal text-[11px]">Must be between 3 and 10 nights</span>
               </label>
               <input
                 type="number"
                 value={form.nights}
                 onChange={e => setForm(f => ({ ...f, nights: parseInt(e.target.value) || 3 }))}
                 min="3" max="10"
-                className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 font-bold"
+                className="input-base font-semibold"
               />
-              {formErrs.nights && <p className="text-red-500 text-xs mt-1">{formErrs.nights}</p>}
+              {formErrs.nights && <p className="text-semantic-error text-xs mt-1">{formErrs.nights}</p>}
             </div>
 
             {/* Adults */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">Adults (18+)</label>
+              <label className="block text-xs font-medium text-secondary mb-1.5">
+                Adults (18+)
+                <span className="text-muted block font-normal text-[11px]">At least 1 adult traveler</span>
+              </label>
               <input
                 type="number"
                 value={form.adults}
                 onChange={e => setForm(f => ({ ...f, adults: parseInt(e.target.value) || 1 }))}
                 min="1" max="10"
-                className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 font-bold"
+                className="input-base font-semibold"
               />
-              {formErrs.adults && <p className="text-red-500 text-xs mt-1">{formErrs.adults}</p>}
+              {formErrs.adults && <p className="text-semantic-error text-xs mt-1">{formErrs.adults}</p>}
             </div>
 
             {/* Children & Ages */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">Children (0–17)</label>
+              <label className="block text-xs font-medium text-secondary mb-1.5">
+                Children (0–17)
+                <span className="text-muted block font-normal text-[11px]">Ages required for hotel bed rules</span>
+              </label>
               <input
                 type="number"
                 value={form.children}
                 onChange={e => handleChildrenChange(e.target.value)}
                 min="0" max="8"
-                className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 font-bold"
+                className="input-base font-semibold"
               />
               {form.childAges.map((age, i) => (
                 <div key={i} className="mt-2 flex items-center space-x-2 text-xs">
-                  <span className="text-slate-500 font-medium">Child {i + 1} age:</span>
+                  <span className="text-muted">Child {i + 1} age:</span>
                   <input
                     type="number"
                     value={age}
                     onChange={e => updateChildAge(i, e.target.value)}
                     min="0" max="17"
-                    className="w-16 border rounded px-2 py-1 text-center font-bold"
+                    className="w-14 input-base py-1 px-2 text-center font-semibold text-xs"
                   />
-                  {formErrs[`age_${i}`] && <p className="text-red-500 text-xs">{formErrs[`age_${i}`]}</p>}
+                  {formErrs[`age_${i}`] && <p className="text-semantic-error text-xs">{formErrs[`age_${i}`]}</p>}
                 </div>
               ))}
             </div>
 
             {/* Budget */}
             <div className="md:col-span-2">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">Budget (₹ INR)</label>
+              <label className="block text-xs font-medium text-secondary mb-1.5">
+                Total Budget (₹ INR)
+                <span className="text-muted block font-normal text-[11px]">Maximum budget in Indian Rupees</span>
+              </label>
               <div className="relative">
-                <span className="absolute left-4 top-2.5 text-slate-400 font-bold">₹</span>
+                <span className="absolute left-3.5 top-2.5 text-muted font-medium text-sm">₹</span>
                 <input
                   type="number"
                   value={form.budgetInr}
                   onChange={e => setForm(f => ({ ...f, budgetInr: parseInt(e.target.value) || 0 }))}
                   min="0"
                   step="1000"
-                  className="w-full border border-slate-300 rounded-xl pl-8 pr-4 py-2.5 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500"
+                  className="input-base pl-8 font-semibold"
                 />
               </div>
-              {formErrs.budgetInr && <p className="text-red-500 text-xs mt-1">{formErrs.budgetInr}</p>}
+              {formErrs.budgetInr && <p className="text-semantic-error text-xs mt-1">{formErrs.budgetInr}</p>}
             </div>
 
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 px-6 rounded-xl shadow-md transition disabled:opacity-50 text-base"
-          >
-            {loading ? 'Calculating All Possible Packages...' : 'Build Complete Holiday Package 🏖️'}
-          </button>
+          <div className="pt-2">
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn-primary w-full py-2.5 text-sm"
+            >
+              {loading ? 'Calculating Packages Across Catalog...' : 'Build Complete Holiday Package'}
+            </button>
+          </div>
         </form>
       </div>
     </div>

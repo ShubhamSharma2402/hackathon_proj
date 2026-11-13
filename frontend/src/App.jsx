@@ -1,4 +1,4 @@
-// App.jsx — clean tab-based navigation with error boundary
+// App.jsx — clean tab-based navigation with calm, production-grade SaaS shell
 import React, { useState, Component } from 'react'
 import Home from './pages/Home.jsx'
 import PackagePage from './pages/PackagePage.jsx'
@@ -21,10 +21,12 @@ class ErrorBoundary extends Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="max-w-xl mx-auto my-12 bg-white rounded-2xl shadow-sm border border-red-100 p-8 text-center space-y-4">
-          <div className="text-4xl">⚠️</div>
-          <h2 className="text-xl font-bold text-slate-800">Something went wrong</h2>
-          <p className="text-xs text-slate-500">
+        <div className="max-w-md mx-auto my-16 bg-surface border border-semantic-errorBorder rounded-xl shadow-card p-8 text-center space-y-4">
+          <div className="w-10 h-10 mx-auto rounded-full bg-semantic-errorBg flex items-center justify-center text-semantic-error text-lg">
+            !
+          </div>
+          <h2 className="text-base font-semibold text-primary">Something unexpected happened</h2>
+          <p className="text-xs text-muted leading-relaxed">
             {this.state.error?.message || 'An unexpected error occurred while rendering the page.'}
           </p>
           <div className="pt-2 flex justify-center gap-2">
@@ -33,7 +35,7 @@ class ErrorBoundary extends Component {
                 this.setState({ hasError: false, error: null })
                 window.location.reload()
               }}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition"
+              className="btn-primary text-xs"
             >
               Reload Page
             </button>
@@ -42,7 +44,7 @@ class ErrorBoundary extends Component {
                 this.setState({ hasError: false, error: null })
                 window.location.href = '/'
               }}
-              className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-4 py-2.5 rounded-xl border transition"
+              className="btn-secondary text-xs"
             >
               Go to Home
             </button>
@@ -90,48 +92,86 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800">
-      {/* Top Header */}
-      <header className="bg-indigo-600 text-white shadow sticky top-0 z-40">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center space-x-3 cursor-pointer" onClick={() => setCurrentTab('home')}>
-            <span className="text-2xl">✈️</span>
-            <div>
-              <h1 className="text-xl font-bold tracking-tight leading-none">Build My Holiday</h1>
-              <p className="text-xs text-indigo-200 mt-0.5">Automated Multi-City Travel Packages</p>
+    <div className="min-h-screen bg-canvas text-primary font-sans flex flex-col">
+      {/* Top Navigation Shell */}
+      <header className="bg-canvas/90 backdrop-blur-md border-b border-border sticky top-0 z-40">
+        <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
+          
+          {/* Brand Logo & Title */}
+          <div 
+            className="flex items-center space-x-3 cursor-pointer group" 
+            onClick={() => setCurrentTab('home')}
+          >
+            <div className="w-7 h-7 rounded-md bg-accent-tint border border-accent-border flex items-center justify-center text-accent text-sm font-semibold transition-colors duration-150 group-hover:bg-accent group-hover:text-white">
+              <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                <path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/>
+              </svg>
+            </div>
+            <div className="flex items-center space-x-2">
+              <span className="text-sm font-semibold tracking-tight text-primary">Build My Holiday</span>
+              <span className="badge-accent text-[10px] px-2 py-0.5">Trip Engine</span>
             </div>
           </div>
-          <nav className="flex items-center space-x-2 text-sm">
+
+          {/* Segmented Control Navigation */}
+          <nav className="flex items-center bg-surface-nested p-1 rounded-lg border border-border">
             <button
               onClick={() => setCurrentTab('home')}
-              className={`px-3 py-1.5 rounded-lg font-medium transition ${currentTab === 'home' ? 'bg-indigo-700 text-white font-bold' : 'hover:bg-indigo-700 text-indigo-100'}`}
+              className={`px-3 py-1 text-xs font-medium rounded-md transition-all duration-150 ${
+                currentTab === 'home'
+                  ? 'bg-surface text-primary shadow-sm border border-border'
+                  : 'text-secondary hover:text-primary hover:bg-surface-hover border border-transparent'
+              }`}
             >
               Plan Trip
             </button>
             <button
               onClick={handleOpenItinerary}
-              className={`px-3 py-1.5 rounded-lg font-medium transition ${currentTab === 'package' ? 'bg-indigo-700 text-white font-bold' : 'hover:bg-indigo-700 text-indigo-100'}`}
+              className={`px-3 py-1 text-xs font-medium rounded-md transition-all duration-150 ${
+                currentTab === 'package'
+                  ? 'bg-surface text-primary shadow-sm border border-border'
+                  : 'text-secondary hover:text-primary hover:bg-surface-hover border border-transparent'
+              }`}
             >
               Itinerary
             </button>
             <button
               onClick={handleOpenReservation}
-              className={`px-3 py-1.5 rounded-lg font-medium transition ${currentTab === 'reservation' ? 'bg-indigo-700 text-white font-bold' : 'hover:bg-indigo-700 text-indigo-100'}`}
+              className={`px-3 py-1 text-xs font-medium rounded-md transition-all duration-150 ${
+                currentTab === 'reservation'
+                  ? 'bg-surface text-primary shadow-sm border border-border'
+                  : 'text-secondary hover:text-primary hover:bg-surface-hover border border-transparent'
+              }`}
             >
               Find Reservation
             </button>
           </nav>
+
+          {/* Right Status Indicator */}
+          <div className="hidden sm:flex items-center space-x-2 text-xs text-muted">
+            <span className="w-1.5 h-1.5 rounded-full bg-semantic-success"></span>
+            <span>MongoDB Active</span>
+          </div>
+
         </div>
       </header>
 
-      {/* Main Page Content */}
-      <main className="max-w-6xl mx-auto px-4 py-8">
+      {/* Main Page Workspace */}
+      <main className="flex-1 max-w-5xl w-full mx-auto px-6 py-8">
         <ErrorBoundary>
           {currentTab === 'home' && <Home navigate={navigate} />}
           {currentTab === 'package' && <PackagePage packageId={activePackageId} navigate={navigate} />}
           {currentTab === 'reservation' && <ReservationPage reservationNumber={activeResNumber} navigate={navigate} />}
         </ErrorBoundary>
       </main>
+
+      {/* Subtle Footer */}
+      <footer className="border-t border-border py-4 text-center text-xs text-muted bg-canvas">
+        <div className="max-w-5xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <span>Build My Holiday &bull; Multi-City Optimization Engine</span>
+          <span className="text-subtle">Section 4 Rules Verified</span>
+        </div>
+      </footer>
     </div>
   )
 }

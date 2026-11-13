@@ -1,4 +1,4 @@
-// pages/ReservationPage.jsx
+// pages/ReservationPage.jsx — calm, high-contrast SaaS reservation lookup
 import React, { useState } from 'react';
 import { getReservation } from '../api/client.js';
 
@@ -19,54 +19,92 @@ export default function ReservationPage({ reservationNumber, navigate }) {
       const res = await getReservation(num.trim());
       setData(res.data);
     } catch (err) {
-      setError('Reservation not found. Please verify your 10-digit number.');
+      setError('Reservation not found. Please verify your 10-digit reservation number.');
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <div className="bg-white rounded-2xl shadow-sm border p-8 text-center">
-        <h2 className="text-xl font-bold text-slate-800">Lookup Confirmed Reservation</h2>
-        <p className="text-xs text-slate-500 mt-1 mb-6">Enter your 10-digit reservation number to view booking details.</p>
+    <div className="max-w-xl mx-auto space-y-6">
+      
+      {/* Intro */}
+      <div className="space-y-1">
+        <h1 className="text-xl font-semibold tracking-tight text-primary">Find Your Reservation</h1>
+        <p className="text-sm text-secondary">
+          Enter your 10-digit booking reference to retrieve your itinerary snapshot from MongoDB.
+        </p>
+      </div>
 
-        <form onSubmit={handleSearch} className="flex gap-2 max-w-md mx-auto">
-          <input
-            type="text"
-            value={num}
-            onChange={e => setNum(e.target.value)}
-            placeholder="e.g. 3935936909"
-            className="flex-1 border border-slate-300 rounded-xl px-4 py-2.5 text-center font-mono font-bold text-lg"
-          />
-          <button type="submit" disabled={loading} className="bg-indigo-600 text-white font-bold px-6 py-2.5 rounded-xl">
-            {loading ? 'Searching...' : 'Search'}
-          </button>
+      {/* Search Card */}
+      <div className="card-base space-y-6">
+        <form onSubmit={handleSearch} className="space-y-3">
+          <label className="block text-xs font-medium text-secondary">
+            10-Digit Reservation Number
+          </label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={num}
+              onChange={e => setNum(e.target.value)}
+              placeholder="e.g. 7520260845"
+              maxLength={10}
+              className="input-base font-mono text-base tracking-wider text-center"
+            />
+            <button 
+              type="submit" 
+              disabled={loading} 
+              className="btn-primary text-xs whitespace-nowrap px-5"
+            >
+              {loading ? 'Searching...' : 'Lookup Booking'}
+            </button>
+          </div>
+          <p className="text-[11px] text-muted">
+            Reference is generated upon package confirmation and stored permanently.
+          </p>
         </form>
 
         {error && (
-          <div className="mt-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-bold">
-            {error}
+          <div className="bg-semantic-errorBg border border-semantic-errorBorder text-semantic-error p-3.5 rounded-lg text-xs flex items-start space-x-2.5">
+            <span className="font-semibold text-sm leading-none mt-0.5">!</span>
+            <div className="flex-1 font-medium leading-relaxed">{error}</div>
           </div>
         )}
 
         {data && (
-          <div className="mt-6 p-6 rounded-2xl bg-emerald-50 border border-emerald-200 text-left space-y-3">
-            <div className="flex items-center justify-between border-b pb-2">
-              <span className="font-extrabold text-emerald-900 text-lg">Reservation #{data.reservationNumber}</span>
-              <span className="text-xs bg-emerald-200 text-emerald-900 font-bold px-2 py-0.5 rounded">CONFIRMED</span>
+          <div className="bg-surface-nested border border-border rounded-xl p-5 text-left space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-border">
+              <div>
+                <span className="text-[10px] text-muted font-mono uppercase tracking-wider block">Booking Reference</span>
+                <span className="font-mono font-bold text-primary text-base">#{data.reservationNumber}</span>
+              </div>
+              <span className="badge-success text-xs font-medium">Confirmed</span>
             </div>
-            <div className="grid grid-cols-2 gap-2 text-xs text-emerald-900">
-              <div>Destination: {data.package.request.country}</div>
-              <div>Start Date: {data.package.request.startDate}</div>
-              <div>Travelers: {data.package.request.adults} Adults, {data.package.request.children || 0} Children</div>
-              <div>Total: ₹{data.package.totalInr.toLocaleString('en-IN')}</div>
+
+            <div className="grid grid-cols-2 gap-3 text-xs text-secondary">
+              <div>
+                <span className="text-muted block text-[11px]">Destination</span>
+                <span className="font-medium text-primary">{data.package.request.country}</span>
+              </div>
+              <div>
+                <span className="text-muted block text-[11px]">Arrival Date</span>
+                <span className="font-medium text-primary">{data.package.request.startDate}</span>
+              </div>
+              <div>
+                <span className="text-muted block text-[11px]">Travelers</span>
+                <span className="font-medium text-primary">{data.package.request.adults} Adults{data.package.request.children ? `, ${data.package.request.children} Children` : ''}</span>
+              </div>
+              <div>
+                <span className="text-muted block text-[11px]">Total Package Price</span>
+                <span className="font-semibold text-primary">₹{data.package.totalInr.toLocaleString('en-IN')}</span>
+              </div>
             </div>
-            <div className="flex flex-wrap items-center gap-3 pt-3">
+
+            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border">
               <a
                 href={`/api/reservations/${data.reservationNumber}/export`}
                 download={`reservation-${data.reservationNumber}.json`}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm transition inline-flex items-center space-x-1.5"
+                className="btn-secondary text-xs py-1.5 px-3"
               >
                 <span>📥 Download JSON</span>
               </a>
@@ -75,14 +113,15 @@ export default function ReservationPage({ reservationNumber, navigate }) {
                   localStorage.setItem('bmh_current_pkg_id', data.package.packageId);
                   navigate('package', data.package.packageId);
                 }}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm transition inline-flex items-center space-x-1"
+                className="btn-primary text-xs py-1.5 px-3"
               >
-                <span>Open Full Itinerary →</span>
+                <span>Open Full Itinerary &rarr;</span>
               </button>
             </div>
           </div>
         )}
       </div>
+
     </div>
   );
 }
