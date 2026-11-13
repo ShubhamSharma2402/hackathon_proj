@@ -1,8 +1,58 @@
-// App.jsx — clean tab-based navigation (no external router needed)
-import React, { useState } from 'react'
+// App.jsx — clean tab-based navigation with error boundary
+import React, { useState, Component } from 'react'
 import Home from './pages/Home.jsx'
 import PackagePage from './pages/PackagePage.jsx'
 import ReservationPage from './pages/ReservationPage.jsx'
+
+class ErrorBoundary extends Component {
+  constructor(props) {
+    super(props)
+    this.state = { hasError: false, error: null }
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error }
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('ErrorBoundary caught an error:', error, errorInfo)
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="max-w-xl mx-auto my-12 bg-white rounded-2xl shadow-sm border border-red-100 p-8 text-center space-y-4">
+          <div className="text-4xl">⚠️</div>
+          <h2 className="text-xl font-bold text-slate-800">Something went wrong</h2>
+          <p className="text-xs text-slate-500">
+            {this.state.error?.message || 'An unexpected error occurred while rendering the page.'}
+          </p>
+          <div className="pt-2 flex justify-center gap-2">
+            <button
+              onClick={() => {
+                this.setState({ hasError: false, error: null })
+                window.location.reload()
+              }}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition"
+            >
+              Reload Page
+            </button>
+            <button
+              onClick={() => {
+                this.setState({ hasError: false, error: null })
+                window.location.href = '/'
+              }}
+              className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-4 py-2.5 rounded-xl border transition"
+            >
+              Go to Home
+            </button>
+          </div>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
 
 export default function App() {
   const [currentTab, setCurrentTab] = useState('home')
@@ -60,9 +110,11 @@ export default function App() {
 
       {/* Main Page Content */}
       <main className="max-w-6xl mx-auto px-4 py-8">
-        {currentTab === 'home' && <Home navigate={navigate} />}
-        {currentTab === 'package' && <PackagePage packageId={activePackageId} navigate={navigate} />}
-        {currentTab === 'reservation' && <ReservationPage reservationNumber={activeResNumber} navigate={navigate} />}
+        <ErrorBoundary>
+          {currentTab === 'home' && <Home navigate={navigate} />}
+          {currentTab === 'package' && <PackagePage packageId={activePackageId} navigate={navigate} />}
+          {currentTab === 'reservation' && <ReservationPage reservationNumber={activeResNumber} navigate={navigate} />}
+        </ErrorBoundary>
       </main>
     </div>
   )

@@ -62,15 +62,24 @@ export default function ReservationPage({ reservationNumber, navigate }) {
               <div>Travelers: {data.package.request.adults} Adults, {data.package.request.children || 0} Children</div>
               <div>Total: ₹{data.package.totalInr.toLocaleString('en-IN')}</div>
             </div>
-            <button
-              onClick={() => {
-                localStorage.setItem('bmh_current_pkg_id', data.package.packageId);
-                navigate('package', data.package.packageId);
-              }}
-              className="mt-3 bg-indigo-600 text-white text-xs font-bold px-4 py-2 rounded-xl"
-            >
-              Open Full Itinerary →
-            </button>
+            <div className="flex flex-wrap items-center gap-3 pt-3">
+              <a
+                href={`/api/reservations/${data.reservationNumber}/export`}
+                download={`reservation-${data.reservationNumber}.json`}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm transition inline-flex items-center space-x-1.5"
+              >
+                <span>📥 Download JSON</span>
+              </a>
+              <button
+                onClick={() => {
+                  localStorage.setItem('bmh_current_pkg_id', data.package.packageId);
+                  navigate('package', data.package.packageId);
+                }}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm transition inline-flex items-center space-x-1"
+              >
+                <span>Open Full Itinerary →</span>
+              </button>
+            </div>
           </div>
         )}
       </div>

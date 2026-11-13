@@ -269,13 +269,15 @@ function renderPackage(pkg, availableCityPlans = null) {
     statusBadge.className = 'badge bg-emerald-100 text-emerald-800 font-bold';
     document.getElementById('confirmed-card').classList.remove('hidden');
     document.getElementById('confirmed-res-number').textContent = `Reservation #${pkg.reservationNumber}`;
-    document.getElementById('btn-confirm-booking').disabled = true;
-    document.getElementById('btn-confirm-booking').classList.add('opacity-50', 'cursor-not-allowed');
+    const bookedActions = document.getElementById('pkg-booked-actions');
+    if (bookedActions) bookedActions.classList.remove('hidden');
+    const badge = document.getElementById('confirmed-res-badge');
+    if (badge) badge.textContent = `Reservation #${pkg.reservationNumber}`;
   } else {
     statusBadge.className = 'badge bg-amber-100 text-amber-800 font-bold';
     document.getElementById('confirmed-card').classList.add('hidden');
-    document.getElementById('btn-confirm-booking').disabled = false;
-    document.getElementById('btn-confirm-booking').classList.remove('opacity-50', 'cursor-not-allowed');
+    const bookedActions = document.getElementById('pkg-booked-actions');
+    if (bookedActions) bookedActions.classList.add('hidden');
   }
 
   document.getElementById('pkg-id-text').textContent = `ID: ${pkg.packageId.slice(0, 8)}...`;
@@ -377,9 +379,26 @@ function renderThreePackagesCards(activePkg) {
           </div>
         </div>
 
-        <button class="mt-4 w-full py-1.5 rounded-lg text-xs font-bold transition ${isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}">
-          ${isSelected ? 'Currently Viewing' : 'Select This Package'}
-        </button>
+        ${isSelected ? `
+          <div class="mt-4 space-y-2">
+            <div class="w-full py-2 rounded-lg text-xs font-bold text-center bg-indigo-600 text-white shadow-sm flex items-center justify-center">
+              Currently Viewing
+            </div>
+            ${activePkg.status !== 'BOOKED' ? `
+              <button onclick="event.stopPropagation(); confirmCurrentPackage()" class="w-full py-2.5 rounded-xl text-xs font-black text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-md transition flex items-center justify-center space-x-1.5 cursor-pointer">
+                <i class="fa-solid fa-circle-check mr-1.5"></i> Confirm Reservation
+              </button>
+            ` : `
+              <div class="w-full py-2 rounded-xl text-xs font-bold text-center bg-emerald-50 text-emerald-800 border border-emerald-300">
+                ✓ Reserved (#${activePkg.reservationNumber})
+              </div>
+            `}
+          </div>
+        ` : `
+          <button class="mt-4 w-full py-2.5 rounded-xl text-xs font-bold transition bg-slate-100 text-slate-700 hover:bg-slate-200">
+            Select This Package
+          </button>
+        `}
       </div>
     `;
   }).join('');
@@ -947,9 +966,14 @@ async function handleLookupReservation() {
             <span class="badge bg-emerald-800 text-emerald-100 mb-1">BOOKED & CONFIRMED</span>
             <h4 class="font-black text-xl text-emerald-900">Reservation #${data.reservationNumber}</h4>
           </div>
-          <button onclick="loadLookedUpPackage('${pkg.packageId}')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition">
-            Open in Itinerary View →
-          </button>
+          <div class="flex items-center gap-2">
+            <a href="/api/reservations/${data.reservationNumber}/export" download="reservation-${data.reservationNumber}.json" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition inline-flex items-center">
+              <i class="fa-solid fa-file-arrow-down mr-1.5"></i> Download JSON
+            </a>
+            <button onclick="loadLookedUpPackage('${pkg.packageId}')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition">
+              Open in Itinerary View →
+            </button>
+          </div>
         </div>
         <div class="grid grid-cols-2 gap-3 text-xs text-emerald-900">
           <div><span class="font-semibold text-emerald-700">Destination:</span> ${pkg.request.country} (${pkg.cityPlan.join(', ')})</div>

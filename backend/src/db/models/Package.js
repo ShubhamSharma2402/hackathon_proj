@@ -41,6 +41,8 @@ const PackageSchema = new mongoose.Schema({
 
   reservationNumber: { type: String, default: null }, // set after confirm
 
-}, { timestamps: true }); // adds createdAt, updatedAt automatically
+  metrics: { type: mongoose.Schema.Types.Mixed, default: {} },
+
+}, { timestamps: true, strict: false }); // adds createdAt, updatedAt automatically & preserves all fields
 
 module.exports = mongoose.model('Package', PackageSchema);

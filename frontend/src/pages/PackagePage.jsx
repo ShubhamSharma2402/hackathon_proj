@@ -15,6 +15,7 @@ export default function PackagePage({ packageId, navigate }) {
   const [cityPlans, setCityPlans] = useState([]);
   const [budgetWarning, setBudgetWarning] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -59,13 +60,59 @@ export default function PackagePage({ packageId, navigate }) {
     );
   }
 
-  const budget = pkg.request.budgetInr;
-  const total = pkg.totalInr;
+  const budget = pkg?.request?.budgetInr || 0;
+  const total = pkg?.totalInr || 0;
   const diff = budget - total;
 
   function handleSelectCard(card) {
+    if (!card || !card.package) return;
     setPkg(card.package);
     localStorage.setItem('bmh_current_pkg_id', card.package.packageId);
+  }
+
+  async function handleConfirmReservation(targetPkgId) {
+    const idToConfirm = targetPkgId || pkg?.packageId;
+    if (!idToConfirm) return;
+    setConfirming(true);
+    try {
+      const res = await confirmPackage(idToConfirm);
+      const updated = res.data.package || {};
+      const resNum = res.data.reservationNumber || updated.reservationNumber;
+
+      const fullUpdated = {
+        ...pkg,
+        ...updated,
+        status: 'BOOKED',
+        reservationNumber: resNum,
+        request: updated.request || pkg?.request || {},
+        metrics: updated.metrics || pkg?.metrics || { travelMinutes: 0, avgHotelStars: 3 },
+      };
+
+      setPkg(fullUpdated);
+      localStorage.setItem('bmh_current_pkg_id', fullUpdated.packageId);
+      localStorage.setItem('bmh_current_package', JSON.stringify(fullUpdated));
+
+      // Update packageCards state so the confirmed card reflects BOOKED
+      setPackageCards(prevCards => (prevCards || []).map(c => {
+        if (c?.package?.packageId === fullUpdated.packageId) {
+          return {
+            ...c,
+            package: {
+              ...c.package,
+              ...fullUpdated,
+              metrics: fullUpdated.metrics || c.package?.metrics || { travelMinutes: 0, avgHotelStars: 3 },
+            },
+          };
+        }
+        return c;
+      }));
+
+      alert(`✓ Reservation Confirmed!\n\nReservation Number: ${resNum}\n\nDownload JSON is now enabled at the top right of your itinerary.`);
+    } catch (e) {
+      alert(e.response?.data?.message || 'Confirmation failed. Please try again.');
+    } finally {
+      setConfirming(false);
+    }
   }
 
   return (
@@ -90,42 +137,29 @@ export default function PackagePage({ packageId, navigate }) {
               <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-bold ${pkg.status === 'BOOKED' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
                 {pkg.status}
               </span>
-              <span className="text-xs text-slate-400 font-mono">ID: {pkg.packageId.slice(0, 8)}...</span>
+              <span className="text-xs text-slate-400 font-mono">ID: {(pkg.packageId || '').slice(0, 8)}...</span>
             </div>
-            <h2 className="text-2xl font-black text-slate-900 mt-1">{pkg.request.country}: {pkg.cityPlan.join(' → ')}</h2>
+            <h2 className="text-2xl font-black text-slate-900 mt-1">{pkg.request?.country || 'Trip'}: {(pkg.cityPlan || []).join(' → ')}</h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              {pkg.request.nights} Nights ({pkg.request.startDate} to {pkg.items[pkg.items.length - 1]?.start.slice(0, 10)}) • {pkg.request.adults} Adults{pkg.request.children ? `, ${pkg.request.children} Children` : ''}
+              {pkg.request?.nights || 0} Nights ({pkg.request?.startDate || ''} to {pkg.items && pkg.items.length > 0 ? (pkg.items[pkg.items.length - 1]?.start?.slice(0, 10) || '') : ''}) • {pkg.request?.adults || 0} Adults{pkg.request?.children ? `, ${pkg.request.children} Children` : ''}
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => window.location.href = `/api/packages/${pkg.packageId}/export`}
-              className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 transition flex items-center space-x-1"
-            >
-              <span>📥 Download JSON</span>
-            </button>
-            {pkg.status !== 'BOOKED' ? (
-              <button
-                onClick={async () => {
-                  try {
-                    const res = await confirmPackage(pkg.packageId);
-                    setPkg(res.data.package);
-                    alert(`✓ Reservation Confirmed!\nYour 10-digit reservation number is: ${res.data.reservationNumber}`);
-                  } catch (e) {
-                    alert('Confirmation failed.');
-                  }
-                }}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-sm transition flex items-center space-x-1"
+          {/* Download JSON & Reservation Number: Only rendered in top header AFTER booking (M7 requirement) */}
+          {pkg.status === 'BOOKED' && (
+            <div className="flex flex-wrap items-center gap-2">
+              <a
+                href={`/api/packages/${pkg.packageId}/export`}
+                download={`holiday-package-${pkg.packageId}.json`}
+                className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 transition flex items-center space-x-1.5"
               >
-                <span>✓ Confirm Reservation</span>
-              </button>
-            ) : (
-              <div className="bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold text-xs px-3 py-2 rounded-xl">
-                Reservation #{pkg.reservationNumber}
+                <span>📥 Download JSON</span>
+              </a>
+              <div className="bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold text-xs px-3 py-2 rounded-xl flex items-center space-x-1">
+                <span>Reservation #{pkg.reservationNumber}</span>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Budget Numbers */}
@@ -155,10 +189,12 @@ export default function PackagePage({ packageId, navigate }) {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {packageCards.map((card, idx) => {
-                const isSelected = pkg.packageId === card.package.packageId;
-                const travelHours = Math.floor(card.package.metrics.travelMinutes / 60);
-                const travelMins = card.package.metrics.travelMinutes % 60;
-                const stars = card.package.metrics.avgHotelStars || 3;
+                if (!card || !card.package) return null;
+                const isSelected = pkg?.packageId === card.package.packageId;
+                const travelMinutes = card.package.metrics?.travelMinutes || 0;
+                const travelHours = Math.floor(travelMinutes / 60);
+                const travelMins = travelMinutes % 60;
+                const stars = card.package.metrics?.avgHotelStars || 3;
 
                 return (
                   <div
@@ -190,10 +226,10 @@ export default function PackagePage({ packageId, navigate }) {
 
                       <div className="mt-3">
                         <div className="text-2xl font-black text-slate-900">
-                          ₹{card.package.totalInr.toLocaleString('en-IN')}
+                          ₹{(card.package.totalInr || 0).toLocaleString('en-IN')}
                         </div>
                         <p className="text-xs text-slate-500 font-medium mt-0.5">
-                          {card.package.cityPlan.join(' → ')} ({card.package.request.nights} Nights)
+                          {(card.package.cityPlan || []).join(' → ')} ({card.package.request?.nights || 0} Nights)
                         </p>
                       </div>
 
@@ -208,23 +244,66 @@ export default function PackagePage({ packageId, navigate }) {
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-slate-400">Total Items:</span>
-                          <span className="font-bold text-slate-800">{card.package.items.length} items</span>
+                          <span className="font-bold text-slate-800">{(card.package.items || []).length} items</span>
                         </div>
                       </div>
                     </div>
 
-                    <button
-                      type="button"
-                      className={`mt-4 w-full py-1.5 rounded-lg text-xs font-bold transition ${
-                        isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                      }`}
-                    >
-                      {isSelected ? 'Currently Viewing' : 'Select This Package'}
-                    </button>
+                    {isSelected ? (
+                      <div className="mt-4 space-y-2">
+                        <div className="w-full py-2 rounded-lg text-xs font-bold text-center bg-indigo-600 text-white shadow-sm flex items-center justify-center space-x-1">
+                          <span>Currently Viewing</span>
+                        </div>
+                        {pkg.status !== 'BOOKED' ? (
+                          <button
+                            type="button"
+                            disabled={confirming}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleConfirmReservation(card.package.packageId);
+                            }}
+                            className="w-full py-2.5 rounded-xl text-xs font-black text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-md transition flex items-center justify-center space-x-1.5 cursor-pointer"
+                          >
+                            <span>✓</span>
+                            <span>{confirming ? 'Confirming Reservation...' : 'Confirm Reservation'}</span>
+                          </button>
+                        ) : (
+                          <div className="w-full py-2 rounded-xl text-xs font-bold text-center bg-emerald-50 text-emerald-800 border border-emerald-300 flex items-center justify-center space-x-1">
+                            <span>✓ Reserved (#{pkg.reservationNumber})</span>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSelectCard(card);
+                        }}
+                        className="mt-4 w-full py-2.5 rounded-xl text-xs font-bold transition bg-slate-100 text-slate-700 hover:bg-slate-200"
+                      >
+                        Select This Package
+                      </button>
+                    )}
                   </div>
                 );
               })}
             </div>
+          </div>
+        )}
+
+        {/* Fallback Confirm Button if no package cards present */}
+        {(!packageCards || packageCards.length === 0) && pkg.status !== 'BOOKED' && (
+          <div className="mt-6 pt-4 border-t border-slate-100 flex justify-end">
+            <button
+              type="button"
+              disabled={confirming}
+              onClick={() => handleConfirmReservation(pkg.packageId)}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-md transition flex items-center space-x-1.5"
+            >
+              <span>✓</span>
+              <span>{confirming ? 'Confirming Reservation...' : 'Confirm Reservation'}</span>
+            </button>
           </div>
         )}
 
@@ -233,13 +312,14 @@ export default function PackagePage({ packageId, navigate }) {
       {/* Day-by-Day Timeline (M4) */}
       <div className="space-y-4">
         <h3 className="font-bold text-slate-800 text-lg flex items-center">
-          📅 Day-by-Day Itinerary ({pkg.items.length} Activities)
+          📅 Day-by-Day Itinerary ({(pkg.items || []).length} Activities)
         </h3>
 
         <div className="space-y-3">
-          {pkg.items.map((item, idx) => {
-            const timeStr = item.start.includes('T') ? item.start.slice(11, 16) : item.start;
-            const endStr = item.end && item.end.includes('T') ? item.end.slice(11, 16) : item.end;
+          {(pkg.items || []).map((item, idx) => {
+            if (!item) return null;
+            const timeStr = item.start && item.start.includes('T') ? item.start.slice(11, 16) : (item.start || '');
+            const endStr = item.end && item.end.includes('T') ? item.end.slice(11, 16) : (item.end || '');
 
             let badgeColor = 'bg-slate-100 text-slate-700';
             let icon = '🏷️';

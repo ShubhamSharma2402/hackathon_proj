@@ -368,6 +368,26 @@ router.post('/:id/confirm', async (req, res) => {
     item.booking = { reference: reservationNumber };
   }
 
+  // Ensure metrics is always populated (Section 4 & G4)
+  if (!pkg.metrics || typeof pkg.metrics.travelMinutes !== 'number') {
+    let flightMinutes = 0;
+    let transferMinutes = 0;
+    let hotelStarsSum = 0;
+    let hotelCount = 0;
+    for (const it of (pkg.items || [])) {
+      if (it.type === 'flight' && it.duration_minutes) flightMinutes += it.duration_minutes;
+      if (it.type === 'transfer' && it.duration_minutes) transferMinutes += it.duration_minutes;
+      if (it.type === 'hotel' && it.stars) {
+        hotelStarsSum += it.stars;
+        hotelCount++;
+      }
+    }
+    pkg.metrics = {
+      travelMinutes: flightMinutes + transferMinutes,
+      avgHotelStars: hotelCount > 0 ? Math.round((hotelStarsSum / hotelCount) * 10) / 10 : 3,
+    };
+  }
+
   // Save updated package and immutable reservation snapshot in MongoDB
   await savePackage(pkg);
   await saveReservation(reservationNumber, pkg.packageId, pkg);
