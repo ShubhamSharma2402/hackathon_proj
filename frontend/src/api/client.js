@@ -12,6 +12,7 @@ export const getFormData      = ()            => api.get('/catalog/form-data')
 export const getHotels        = (params)      => api.get('/catalog/hotels', { params })
 export const getFlights       = (params)      => api.get('/catalog/flights', { params })
 export const getAttractions   = (params)      => api.get('/catalog/attractions', { params })
+export const getItemsMeta     = ()            => api.get('/catalog/items-meta')
 
 // --- Packages ---
 export const buildPackage     = (request)     => api.post('/packages', request)

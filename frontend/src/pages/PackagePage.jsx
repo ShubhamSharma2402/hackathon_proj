@@ -7,7 +7,7 @@
 // - Download JSON [Section 6] & Confirm Reservation [M7]
 
 import React, { useState, useEffect } from 'react';
-import { getPackage, confirmPackage, changeHotel, changeFlight, changeAttractions } from '../api/client.js';
+import { getPackage, confirmPackage, changeHotel, changeFlight, changeAttractions, getItemsMeta } from '../api/client.js';
 
 export default function PackagePage({ packageId, navigate }) {
   const [pkg, setPkg] = useState(null);
@@ -17,6 +17,45 @@ export default function PackagePage({ packageId, navigate }) {
   const [loading, setLoading] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState(null);
+  const [catalogMeta, setCatalogMeta] = useState(null);
+  const [selectedItem, setSelectedItem] = useState(null);
+
+  // Load catalog media metadata on mount for image & details lookup
+  useEffect(() => {
+    getItemsMeta()
+      .then(res => setCatalogMeta(res.data))
+      .catch(() => {});
+  }, []);
+
+  // Close drawer on Escape key
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape') setSelectedItem(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  function getItemImage(item) {
+    if (!item) return null;
+    if (item.image) return item.image;
+    if (catalogMeta?.items?.[item.catalog_id]?.image) {
+      return catalogMeta.items[item.catalog_id].image;
+    }
+    return null;
+  }
+
+  function getItemDetails(item) {
+    if (!item) return {};
+    const direct = item.details || {};
+    const fromCatalog = catalogMeta?.items?.[item.catalog_id] || {};
+    const roomFromCatalog = item.room_id ? catalogMeta?.rooms?.[item.room_id] : null;
+    return {
+      ...fromCatalog,
+      ...direct,
+      room: roomFromCatalog || direct.room,
+    };
+  }
 
   useEffect(() => {
     const id = localStorage.getItem('bmh_current_pkg_id') || packageId;
@@ -373,13 +412,31 @@ export default function PackagePage({ packageId, navigate }) {
             else if (item.type === 'hotel') badgeClass = 'badge-warning';
             else if (item.type === 'attraction') badgeClass = 'badge-accent';
 
+            const itemImage = getItemImage(item);
+            const hasImage = Boolean(itemImage);
+
             return (
               <div 
-                key={idx} 
-                className="bg-surface p-3.5 rounded-lg border border-border shadow-card flex items-center justify-between transition-colors duration-150 hover:border-border-strong"
+                key={idx}
+                onClick={() => {
+                  // ONLY open if picture is already given in dataset; otherwise nothing happens
+                  if (hasImage) {
+                    setSelectedItem(item);
+                  }
+                }}
+                className={`bg-surface p-3.5 rounded-lg border border-border shadow-card flex items-center justify-between transition-all duration-150 ${
+                  hasImage 
+                    ? 'cursor-pointer hover:border-accent hover:bg-surface-nested hover:shadow-dropdown group' 
+                    : 'cursor-default'
+                }`}
+                title={hasImage ? `Click to view ${item.name} photo and details` : undefined}
               >
                 <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 rounded-md bg-surface-nested border border-border flex items-center justify-center text-xs font-semibold text-secondary">
+                  <div className={`w-8 h-8 rounded-md border flex items-center justify-center text-xs font-semibold transition-colors ${
+                    hasImage 
+                      ? 'bg-accent-tint border-accent-border text-accent group-hover:bg-accent group-hover:text-white' 
+                      : 'bg-surface-nested border-border text-secondary'
+                  }`}>
                     {idx + 1}
                   </div>
                   <div>
@@ -387,7 +444,15 @@ export default function PackagePage({ packageId, navigate }) {
                       <span className={`${badgeClass} text-[10px] px-2 py-0.5 uppercase tracking-wide`}>
                         {item.type}
                       </span>
-                      <span className="text-xs font-semibold text-primary">{item.name}</span>
+                      <span className={`text-xs font-semibold ${hasImage ? 'text-primary group-hover:text-accent transition-colors' : 'text-primary'}`}>
+                        {item.name}
+                      </span>
+                      {hasImage && (
+                        <span className="inline-flex items-center space-x-1 text-[10px] text-accent bg-accent-tint border border-accent-border px-1.5 py-0.5 rounded font-medium">
+                          <span>📷</span>
+                          <span className="hidden sm:inline">Photo</span>
+                        </span>
+                      )}
                     </div>
                     <div className="text-[11px] text-muted mt-0.5 flex flex-wrap items-center gap-2">
                       <span>{timeStr}{endStr ? ` → ${endStr}` : ''}</span>
@@ -403,16 +468,268 @@ export default function PackagePage({ packageId, navigate }) {
                   </div>
                 </div>
 
-                <div className="text-right">
-                  <div className="text-xs font-semibold text-primary">
-                    ₹{(item.price_inr || 0).toLocaleString('en-IN')}
+                <div className="text-right flex items-center space-x-3">
+                  <div>
+                    <div className="text-xs font-semibold text-primary">
+                      ₹{(item.price_inr || 0).toLocaleString('en-IN')}
+                    </div>
+                    {hasImage && (
+                      <span className="text-[10px] text-accent font-medium block sm:hidden">
+                        View details &rarr;
+                      </span>
+                    )}
                   </div>
+                  {hasImage && (
+                    <span className="hidden sm:inline-block text-muted group-hover:text-accent text-xs transition-colors">
+                      &rarr;
+                    </span>
+                  )}
                 </div>
               </div>
             );
           })}
         </div>
       </div>
+
+      {/* Half-Page Drawer on the Right Hand Side (opens when item with image is clicked) */}
+      {selectedItem && (() => {
+        const selectedImg = getItemImage(selectedItem);
+        const details = getItemDetails(selectedItem);
+        const timeStr = selectedItem.start && selectedItem.start.includes('T') ? selectedItem.start.slice(11, 16) : (selectedItem.start || '');
+        const endStr = selectedItem.end && selectedItem.end.includes('T') ? selectedItem.end.slice(11, 16) : (selectedItem.end || '');
+
+        return (
+          <>
+            {/* Backdrop */}
+            <div 
+              className="fixed inset-0 bg-primary/20 backdrop-blur-[2px] z-40 transition-opacity"
+              onClick={() => setSelectedItem(null)}
+            />
+
+            {/* Right-Hand Half-Page Panel */}
+            <aside
+              className="fixed top-0 right-0 bottom-0 w-full sm:w-[500px] lg:w-1/2 bg-surface border-l border-border shadow-modal z-50 flex flex-col overflow-hidden"
+              role="dialog"
+              aria-modal="true"
+            >
+              {/* Header */}
+              <div className="p-4 sm:p-5 border-b border-border flex items-start justify-between bg-surface-nested">
+                <div className="space-y-1 pr-4">
+                  <div className="flex items-center space-x-2">
+                    <span className={`${
+                      selectedItem.type === 'hotel' ? 'badge-warning' : 'badge-accent'
+                    } text-[10px] px-2 py-0.5 uppercase tracking-wide`}>
+                      {selectedItem.type}
+                    </span>
+                    <span className="text-xs text-muted font-mono">
+                      {selectedItem.catalog_id}
+                    </span>
+                  </div>
+                  <h2 className="text-base sm:text-lg font-semibold text-primary tracking-tight leading-snug">
+                    {selectedItem.name}
+                  </h2>
+                  <p className="text-xs text-secondary">
+                    {selectedItem.city} {details.area ? `• ${details.area} District` : ''}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedItem(null)}
+                  className="p-1.5 rounded-lg text-secondary hover:text-primary hover:bg-surface-tertiary transition-colors border border-transparent hover:border-border"
+                  title="Close (Esc)"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Scrollable Content */}
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
+
+                {/* Picture (only displayed when given in dataset) */}
+                {selectedImg && (
+                  <div className="space-y-1.5">
+                    <div className="overflow-hidden rounded-lg border border-border shadow-sm bg-surface-nested aspect-video relative">
+                      <img
+                        src={selectedImg.startsWith('/') ? selectedImg : `/${selectedImg}`}
+                        alt={selectedItem.name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                        }}
+                      />
+                    </div>
+                    <p className="text-[11px] text-muted flex items-center justify-between">
+                      <span>Catalog dataset photo</span>
+                      <span>{selectedItem.city}</span>
+                    </p>
+                  </div>
+                )}
+
+                {/* Price Box */}
+                <div className="bg-surface-nested border border-border rounded-lg p-4 flex items-center justify-between">
+                  <div>
+                    <span className="text-[11px] font-medium text-muted uppercase tracking-wider block">
+                      Itinerary Event Price
+                    </span>
+                    <span className="text-2xl font-bold text-primary tracking-tight">
+                      ₹{(selectedItem.price_inr || 0).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                  <div className="text-right text-xs text-secondary space-y-0.5">
+                    {selectedItem.quantity && (
+                      <span className="badge-neutral text-[11px] block">
+                        Quantity: {selectedItem.quantity}
+                      </span>
+                    )}
+                    <span className="text-[11px] text-muted block">
+                      Included in total package
+                    </span>
+                  </div>
+                </div>
+
+                {/* Details Section */}
+                <div className="space-y-3">
+                  <h3 className="text-xs font-semibold text-primary uppercase tracking-wider">
+                    Available Details
+                  </h3>
+
+                  {/* Hotel Specific Details */}
+                  {selectedItem.type === 'hotel' && (
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div className="bg-surface border border-border-subtle p-3 rounded-lg space-y-1">
+                        <span className="text-[11px] text-muted block">Stars & Rating</span>
+                        <span className="font-semibold text-primary flex items-center space-x-1">
+                          <span>⭐ {details.stars || 3} Stars</span>
+                          {details.rating && (
+                            <span className="text-muted">({details.rating}/5)</span>
+                          )}
+                        </span>
+                      </div>
+
+                      <div className="bg-surface border border-border-subtle p-3 rounded-lg space-y-1">
+                        <span className="text-[11px] text-muted block">District / Area</span>
+                        <span className="font-semibold text-primary">
+                          {details.area || selectedItem.city || 'Central'}
+                        </span>
+                      </div>
+
+                      <div className="bg-surface border border-border-subtle p-3 rounded-lg space-y-1">
+                        <span className="text-[11px] text-muted block">Room Type</span>
+                        <span className="font-semibold text-primary">
+                          {details.roomName || details.room?.name || details.roomType || 'Standard Room'}
+                        </span>
+                      </div>
+
+                      <div className="bg-surface border border-border-subtle p-3 rounded-lg space-y-1">
+                        <span className="text-[11px] text-muted block">Capacity / Limits</span>
+                        <span className="font-semibold text-primary">
+                          {details.maxAdults || details.room?.max_adults || 2} Adults
+                          {details.maxChildren || details.room?.max_children ? `, ${details.maxChildren || details.room?.max_children} Children` : ''}
+                        </span>
+                      </div>
+
+                      <div className="bg-surface border border-border-subtle p-3 rounded-lg space-y-1">
+                        <span className="text-[11px] text-muted block">Check-in / Check-out</span>
+                        <span className="font-semibold text-primary">
+                          {details.check_in_from || '15:00'} / {details.check_out_until || '11:00'}
+                        </span>
+                      </div>
+
+                      <div className="bg-surface border border-border-subtle p-3 rounded-lg space-y-1">
+                        <span className="text-[11px] text-muted block">Family Friendly</span>
+                        <span className="font-semibold text-semantic-success flex items-center space-x-1">
+                          <span>✓</span>
+                          <span>{details.family_friendly ? 'Verified' : 'Standard'}</span>
+                        </span>
+                      </div>
+
+                      <div className="col-span-2 bg-surface border border-border-subtle p-3 rounded-lg space-y-1">
+                        <span className="text-[11px] text-muted block">Stay Window</span>
+                        <span className="font-semibold text-primary">
+                          {selectedItem.start} → {selectedItem.end} ({details.nights || 'Stay'} Nights)
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Attraction Specific Details */}
+                  {selectedItem.type === 'attraction' && (
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div className="bg-surface border border-border-subtle p-3 rounded-lg space-y-1">
+                        <span className="text-[11px] text-muted block">Category</span>
+                        <span className="font-semibold text-primary">
+                          {details.category || 'Sightseeing'}
+                        </span>
+                      </div>
+
+                      <div className="bg-surface border border-border-subtle p-3 rounded-lg space-y-1">
+                        <span className="text-[11px] text-muted block">Visit Duration</span>
+                        <span className="font-semibold text-primary">
+                          ~{details.visit_minutes || 60} minutes
+                        </span>
+                      </div>
+
+                      <div className="bg-surface border border-border-subtle p-3 rounded-lg space-y-1">
+                        <span className="text-[11px] text-muted block">Service / Open Hours</span>
+                        <span className="font-semibold text-primary">
+                          {details.open_from || '09:00'} – {details.open_until || '18:00'}
+                        </span>
+                      </div>
+
+                      <div className="bg-surface border border-border-subtle p-3 rounded-lg space-y-1">
+                        <span className="text-[11px] text-muted block">Scheduled Time Slot</span>
+                        <span className="font-semibold text-primary">
+                          {timeStr} → {endStr}
+                        </span>
+                      </div>
+
+                      <div className="bg-surface border border-border-subtle p-3 rounded-lg space-y-1">
+                        <span className="text-[11px] text-muted block">Child Friendly</span>
+                        <span className="font-semibold text-primary">
+                          {details.child_friendly ? '✓ Yes, recommended' : 'General Admission'}
+                        </span>
+                      </div>
+
+                      <div className="bg-surface border border-border-subtle p-3 rounded-lg space-y-1">
+                        <span className="text-[11px] text-muted block">Accessibility</span>
+                        <span className="font-semibold text-primary">
+                          {details.accessible ? '✓ Wheelchair Accessible' : 'Standard'}
+                        </span>
+                      </div>
+
+                      {details.name_ja && (
+                        <div className="col-span-2 bg-surface border border-border-subtle p-3 rounded-lg space-y-1">
+                          <span className="text-[11px] text-muted block">Original Name (Japanese)</span>
+                          <span className="font-medium text-primary font-sans text-sm">
+                            {details.name_ja}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                </div>
+
+              </div>
+
+              {/* Footer */}
+              <div className="p-4 border-t border-border bg-surface-nested flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setSelectedItem(null)}
+                  className="btn-secondary text-xs px-4 py-2"
+                >
+                  Close Details
+                </button>
+              </div>
+
+            </aside>
+          </>
+        );
+      })()}
 
     </div>
   );

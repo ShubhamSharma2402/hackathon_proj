@@ -147,12 +147,6 @@ export default function App() {
             </button>
           </nav>
 
-          {/* Right Status Indicator */}
-          <div className="hidden sm:flex items-center space-x-2 text-xs text-muted">
-            <span className="w-1.5 h-1.5 rounded-full bg-semantic-success"></span>
-            <span>MongoDB Active</span>
-          </div>
-
         </div>
       </header>
 

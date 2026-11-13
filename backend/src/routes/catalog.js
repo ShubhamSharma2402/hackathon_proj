@@ -148,4 +148,98 @@ function roomsNeeded(room, adults, children) {
   return null; // no valid k found
 }
 
+// GET /api/catalog/items-meta
+// Returns image and metadata lookups for all hotels, attractions, flights, transfers, and rooms
+router.get('/items-meta', (req, res) => {
+  const { hotels, attractions, rooms, flights, transfers } = req.app.locals.catalog;
+  const items = {};
+  const roomsMap = {};
+
+  if (hotels) {
+    for (const [id, h] of hotels.entries()) {
+      items[id] = {
+        id,
+        type: 'hotel',
+        name: h.name,
+        image: h.image || null,
+        stars: h.stars || 3,
+        rating: h.rating || 4.0,
+        area: h.area || '',
+        city: h.city || '',
+        check_in_from: h.check_in_from || '15:00',
+        check_out_until: h.check_out_until || '11:00',
+        family_friendly: h.family_friendly ?? true,
+      };
+    }
+  }
+
+  if (attractions) {
+    for (const [id, a] of attractions.entries()) {
+      items[id] = {
+        id,
+        type: 'attraction',
+        name: a.name,
+        name_ja: a.name_ja || '',
+        image: a.image || null,
+        category: a.category || 'Sightseeing',
+        city: a.city || '',
+        visit_minutes: a.visit_minutes || 60,
+        open_from: a.open_from || '09:00',
+        open_until: a.open_until || '18:00',
+        child_friendly: a.child_friendly ?? true,
+        accessible: a.accessible ?? true,
+        price_per_person: a.price_per_person,
+        child_price: a.child_price,
+      };
+    }
+  }
+
+  if (flights) {
+    for (const [id, f] of flights.entries()) {
+      items[id] = {
+        id,
+        type: 'flight',
+        name: `${f.airline} ${f.flight_number}`,
+        image: f.image || null,
+        airline: f.airline,
+        flight_number: f.flight_number,
+        cabin: f.cabin,
+        duration_minutes: f.duration_minutes,
+        stops: f.stops,
+      };
+    }
+  }
+
+  if (transfers) {
+    for (const [id, t] of transfers.entries()) {
+      items[id] = {
+        id,
+        type: 'transfer',
+        name: t.name,
+        image: t.image || null,
+        type_name: t.type,
+        service_from: t.service_from,
+        service_until: t.service_until,
+        duration_minutes: t.duration_minutes,
+      };
+    }
+  }
+
+  if (rooms) {
+    for (const [id, r] of rooms.entries()) {
+      roomsMap[id] = {
+        room_id: r.room_id,
+        hotel_id: r.hotel_id,
+        name: r.name,
+        room_type: r.room_type,
+        max_adults: r.max_adults,
+        max_children: r.max_children,
+        price_per_night: r.price_per_night,
+      };
+    }
+  }
+
+  res.json({ items, rooms: roomsMap });
+});
+
 module.exports = router;

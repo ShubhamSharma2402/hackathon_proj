@@ -92,7 +92,8 @@ export default function Home({ navigate }) {
     if (!form.startDate) errs.startDate = 'Enter a start date'
     if (form.nights < 3 || form.nights > 10) errs.nights = 'Nights must be between 3 and 10'
     if (form.adults < 1) errs.adults = 'At least 1 adult required'
-    if (form.budgetInr <= 0) errs.budgetInr = 'Budget must be greater than 0'
+    const b = Number(form.budgetInr) || 0
+    if (b <= 0) errs.budgetInr = 'Budget must be greater than 0'
     form.childAges.forEach((age, i) => {
       if (age < 0 || age > 17) errs[`age_${i}`] = `Child ${i + 1} age must be 0–17`
     })
@@ -196,7 +197,7 @@ export default function Home({ navigate }) {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} noValidate className="space-y-5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
 
             {/* Departure City */}
@@ -332,9 +333,21 @@ export default function Home({ navigate }) {
                 <input
                   type="number"
                   value={form.budgetInr}
-                  onChange={e => setForm(f => ({ ...f, budgetInr: parseInt(e.target.value) || 0 }))}
-                  min="0"
-                  step="1000"
+                  onChange={e => {
+                    let raw = e.target.value;
+                    if (raw === '') {
+                      setForm(f => ({ ...f, budgetInr: '' }));
+                      return;
+                    }
+                    if (raw.length > 1 && raw.startsWith('0')) {
+                      raw = raw.replace(/^0+/, '') || '0';
+                    }
+                    const num = parseInt(raw, 10);
+                    setForm(f => ({ ...f, budgetInr: isNaN(num) ? '' : num }));
+                  }}
+                  min="1"
+                  step="1"
+                  placeholder="e.g. 350000"
                   className="input-base pl-8 font-semibold"
                 />
               </div>

@@ -32,7 +32,7 @@ export default function ReservationPage({ reservationNumber, navigate }) {
       <div className="space-y-1">
         <h1 className="text-xl font-semibold tracking-tight text-primary">Find Your Reservation</h1>
         <p className="text-sm text-secondary">
-          Enter your 10-digit booking reference to retrieve your itinerary snapshot from MongoDB.
+          Enter your 10-digit booking reference to retrieve your confirmed itinerary snapshot.
         </p>
       </div>
 
