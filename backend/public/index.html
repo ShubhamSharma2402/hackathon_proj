@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Build My Holiday ✈️ | Smart Package Planner</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    .badge { display: inline-flex; align-items: center; padding: 0.15rem 0.5rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans">
+
+  <!-- Top Navigation Header -->
+  <header class="bg-indigo-600 text-white shadow sticky top-0 z-40">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center space-x-3 cursor-pointer" onclick="showTab('tab-plan')">
+        <span class="text-2xl">✈️</span>
+        <div>
+          <h1 class="text-xl font-bold tracking-tight leading-none">Build My Holiday</h1>
+          <p class="text-xs text-indigo-200 mt-0.5">Automated Multi-City Travel Packages</p>
+        </div>
+      </div>
+      <nav class="flex items-center space-x-2 text-sm">
+        <button id="nav-plan" onclick="showTab('tab-plan')" class="px-3 py-1.5 rounded-lg font-medium bg-indigo-700 text-white">
+          <i class="fa-solid fa-compass mr-1.5"></i> Plan Trip
+        </button>
+        <button id="nav-package" onclick="showTab('tab-package')" class="px-3 py-1.5 rounded-lg font-medium hover:bg-indigo-700 text-indigo-100">
+          <i class="fa-solid fa-suitcase-rolling mr-1.5"></i> Itinerary
+        </button>
+        <button id="nav-lookup" onclick="showTab('tab-lookup')" class="px-3 py-1.5 rounded-lg font-medium hover:bg-indigo-700 text-indigo-100">
+          <i class="fa-solid fa-receipt mr-1.5"></i> Find Reservation
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="flex-1 max-w-6xl w-full mx-auto px-4 py-6">
+
+    <!-- Notification / Alert Bar -->
+    <div id="alert-box" class="hidden mb-6 p-4 rounded-xl border flex items-start space-x-3 transition-all">
+      <span id="alert-icon" class="text-xl"></span>
+      <div class="flex-1">
+        <h4 id="alert-title" class="font-bold text-sm"></h4>
+        <p id="alert-desc" class="text-sm mt-0.5"></p>
+      </div>
+      <button onclick="dismissAlert()" class="text-slate-400 hover:text-slate-600">✕</button>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TAB 1: PLAN TRIP (FORM & QUICK INPUT)      -->
+    <!-- ========================================== -->
+    <section id="tab-plan" class="space-y-6">
+      
+      <!-- Quick Demo Filler & Plain Language Request (Stretch S1) -->
+      <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-indigo-100 rounded-2xl p-5 shadow-sm">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h3 class="font-bold text-indigo-900 flex items-center">
+              <i class="fa-solid fa-bolt text-amber-500 mr-2"></i> Fast Demo Presets & Natural Language (S1)
+            </h3>
+            <p class="text-xs text-indigo-700 mt-1">
+              One-click preset for the hackathon judges or enter plain English sentences.
+            </p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button onclick="loadMenonPreset()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-sm transition">
+              <i class="fa-solid fa-user-group mr-1"></i> Load Menon Family (BLR → Japan, 6N)
+            </button>
+            <button onclick="loadUaePreset()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-sm transition">
+              <i class="fa-solid fa-city mr-1"></i> Load UAE Trip (DEL → UAE, 5N)
+            </button>
+          </div>
+        </div>
+
+        <!-- Plain words text box (S1) -->
+        <div class="mt-4 pt-3 border-t border-indigo-200/60 flex gap-2">
+          <input id="quick-input-text" type="text" placeholder="Or type plain words e.g.: 2 adults and 1 child from Bengaluru to Japan for 6 nights starting 10 April budget 350000" class="flex-1 border border-indigo-200 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 bg-white">
+          <button onclick="parseQuickInput()" class="bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-semibold px-3 py-2 rounded-lg transition whitespace-nowrap">
+            Auto-fill Form
+          </button>
+        </div>
+      </div>
+
+      <!-- Main Request Form (M1) -->
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8">
+        <h2 class="text-xl font-bold text-slate-800 mb-6 flex items-center">
+          <i class="fa-solid fa-sliders text-indigo-600 mr-2.5"></i> Trip Parameters
+        </h2>
+
+        <form id="trip-form" onsubmit="handleFormSubmit(event)" class="space-y-6">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+            <!-- 1. Departure City: Editable Input + Dropdown (datalist) -->
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">
+                Departure City (India)
+                <span class="text-slate-400 font-normal lowercase block">(choose from dropdown or type custom city)</span>
+              </label>
+              <input id="form-departure" type="text" list="departure-cities-list" required placeholder="e.g. BLR, Bengaluru, Delhi, or custom" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm bg-white focus:ring-2 focus:ring-indigo-500 font-medium">
+              <datalist id="departure-cities-list"></datalist>
+            </div>
+
+            <!-- 2. Destination Country: Editable Input + Dropdown (datalist) -->
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">
+                Destination Country
+                <span class="text-slate-400 font-normal lowercase block">(choose from dropdown or type custom country)</span>
+              </label>
+              <input id="form-country" type="text" list="destination-countries-list" required placeholder="e.g. Japan, United Arab Emirates, or custom" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm bg-white focus:ring-2 focus:ring-indigo-500 font-medium">
+              <datalist id="destination-countries-list"></datalist>
+            </div>
+
+            <!-- 3. Start Date -->
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">
+                Holiday Start Date <span class="text-slate-400 font-normal lowercase">(first day in destination)</span>
+              </label>
+              <input id="form-start-date" type="date" required min="2027-04-01" max="2027-04-20" value="2027-04-10" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500">
+              <p class="text-[11px] text-slate-500 mt-1">Available data window: 1 to 20 April 2027.</p>
+            </div>
+
+            <!-- 4. Nights -->
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">
+                Number of Nights <span class="text-slate-400 font-normal lowercase">(3 to 10 nights)</span>
+              </label>
+              <input id="form-nights" type="number" required min="3" max="10" value="6" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500">
+            </div>
+
+            <!-- 5. Adults -->
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">Adults (age 18+)</label>
+              <input id="form-adults" type="number" required min="1" max="10" value="2" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500">
+            </div>
+
+            <!-- 6. Children Count & Dynamic Ages -->
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">Children (age 0 to 17)</label>
+              <input id="form-children" type="number" min="0" max="8" value="1" onchange="renderChildAgeInputs()" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500">
+              
+              <!-- Child Ages Container -->
+              <div id="child-ages-container" class="mt-3 flex flex-wrap gap-2"></div>
+            </div>
+
+            <!-- 7. Budget -->
+            <div class="md:col-span-2">
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">Total Budget (₹ INR)</label>
+              <div class="relative">
+                <span class="absolute left-4 top-2.5 text-slate-400 font-bold">₹</span>
+                <input id="form-budget" type="number" required min="0" step="1000" value="350000" class="w-full border border-slate-300 rounded-xl pl-9 pr-4 py-2.5 text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-indigo-500">
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Submit Button -->
+          <button type="submit" id="btn-build" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 px-6 rounded-xl shadow-md transition flex items-center justify-center space-x-2 text-base">
+            <span>Build Complete Holiday Package</span>
+            <i class="fa-solid fa-arrow-right"></i>
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- TAB 2: ITINERARY & CUSTOMIZATION           -->
+    <!-- ========================================== -->
+    <section id="tab-package" class="hidden space-y-6">
+
+      <!-- Budget & Summary Hero Bar (M5) -->
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+          <div>
+            <div class="flex items-center space-x-2">
+              <span id="pkg-status-badge" class="badge bg-amber-100 text-amber-800">PLANNED</span>
+              <span id="pkg-id-text" class="text-xs text-slate-500 font-mono"></span>
+            </div>
+            <h2 id="pkg-title" class="text-2xl font-black text-slate-800 mt-1">Your Holiday Package</h2>
+            <p id="pkg-subtitle" class="text-xs text-slate-500 mt-0.5"></p>
+          </div>
+
+          <!-- Action Buttons: Download JSON (Section 6) & Confirm (M7) -->
+          <div class="flex flex-wrap items-center gap-2">
+            <button onclick="downloadJsonExport()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 transition flex items-center">
+              <i class="fa-solid fa-file-arrow-down mr-1.5 text-indigo-600"></i> Download JSON
+            </button>
+            <button id="btn-confirm-booking" onclick="confirmCurrentPackage()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-sm transition flex items-center">
+              <i class="fa-solid fa-circle-check mr-1.5"></i> Confirm Reservation
+            </button>
+          </div>
+        </div>
+
+        <!-- Budget Gauge Bar (M5) -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 text-center sm:text-left">
+          <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-100">
+            <span class="text-xs text-slate-500 uppercase tracking-wider font-semibold">Total Cost</span>
+            <div id="pkg-total-cost" class="text-2xl font-extrabold text-slate-900 mt-0.5">₹0</div>
+          </div>
+          <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-100">
+            <span class="text-xs text-slate-500 uppercase tracking-wider font-semibold">Your Budget</span>
+            <div id="pkg-budget" class="text-2xl font-extrabold text-slate-700 mt-0.5">₹0</div>
+          </div>
+          <div id="pkg-budget-status-card" class="bg-emerald-50 p-3.5 rounded-xl border border-emerald-100">
+            <span id="pkg-budget-status-label" class="text-xs text-emerald-700 uppercase tracking-wider font-semibold">Under Budget</span>
+            <div id="pkg-budget-diff" class="text-2xl font-extrabold text-emerald-700 mt-0.5">₹0</div>
+          </div>
+        </div>
+
+        <!-- G4: Three Packages Comparison Section -->
+        <div id="three-packages-section" class="bg-slate-50 border border-slate-200 rounded-2xl p-5 mt-5">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="font-extrabold text-xs uppercase tracking-wider text-slate-700 flex items-center">
+              <i class="fa-solid fa-layer-group text-indigo-600 mr-2 text-sm"></i>
+              Calculated Package Options (<span id="three-pkg-count">3</span> Options)
+            </h3>
+            <span class="text-[11px] text-slate-500 font-medium">Select a card to view its day-by-day plan</span>
+          </div>
+          <div id="three-packages-grid" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
+        </div>
+
+        <!-- G3: Change City Plan -->
+        <div id="city-plans-bar" class="mt-4 pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <span class="font-bold text-slate-700 flex items-center">
+            <i class="fa-solid fa-map-location-dot mr-1.5 text-indigo-600"></i> Alternative City Plans (G3):
+          </span>
+          <div id="city-plans-container" class="flex flex-wrap gap-1.5"></div>
+        </div>
+      </div>
+
+      <!-- Confirmed Booking Banner (shows when status === 'BOOKED') -->
+      <div id="confirmed-card" class="hidden bg-emerald-600 text-white rounded-2xl p-6 shadow-md flex items-center justify-between">
+        <div>
+          <span class="badge bg-emerald-800 text-emerald-100 mb-2">RESERVATION CONFIRMED</span>
+          <h3 class="text-2xl font-black tracking-wider" id="confirmed-res-number"></h3>
+          <p class="text-xs text-emerald-100 mt-1">Save this 10-digit number. You can look it up anytime on the "Find Reservation" tab, even after server restart.</p>
+        </div>
+        <div class="text-4xl text-emerald-200">
+          <i class="fa-solid fa-circle-check"></i>
+        </div>
+      </div>
+
+      <!-- Day-by-Day Timeline (M4) -->
+      <div class="space-y-4">
+        <h3 class="text-lg font-bold text-slate-800 flex items-center">
+          <i class="fa-solid fa-calendar-days text-indigo-600 mr-2"></i> Day-by-Day Itinerary (M4)
+        </h3>
+        
+        <div id="timeline-container" class="space-y-4">
+          <!-- Dynamic day cards injected here -->
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ========================================== -->
+    <!-- TAB 3: LOOKUP RESERVATION (M7)             -->
+    <!-- ========================================== -->
+    <section id="tab-lookup" class="hidden max-w-2xl mx-auto space-y-6">
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 text-center">
+        <div class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto text-xl mb-4">
+          <i class="fa-solid fa-magnifying-glass"></i>
+        </div>
+        <h2 class="text-xl font-bold text-slate-800">Lookup Confirmed Reservation</h2>
+        <p class="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+          Enter your 10-digit reservation number to view your complete booking. Data is retrieved directly from MongoDB.
+        </p>
+
+        <div class="mt-6 flex max-w-md mx-auto gap-2">
+          <input id="input-lookup-number" type="text" maxlength="10" placeholder="e.g. 3935936909" class="flex-1 border border-slate-300 rounded-xl px-4 py-2.5 text-center font-mono font-bold tracking-widest text-lg focus:ring-2 focus:ring-indigo-500">
+          <button onclick="handleLookupReservation()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-2.5 rounded-xl transition text-sm">
+            Search
+          </button>
+        </div>
+
+        <div id="lookup-result-container" class="mt-8 text-left hidden">
+          <!-- Found reservation details injected here -->
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ========================================== -->
+  <!-- MODAL: CHANGE HOTEL (M6, G2)               -->
+  <!-- ========================================== -->
+  <div id="modal-hotel" class="hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl space-y-4 max-h-[85vh] flex flex-col">
+      <div class="flex items-center justify-between border-b pb-3">
+        <h3 class="font-bold text-slate-800" id="modal-hotel-title">Change Hotel</h3>
+        <button onclick="closeModal('modal-hotel')" class="text-slate-400 hover:text-slate-600">✕</button>
+      </div>
+      <p class="text-xs text-slate-500">Select an alternative hotel for this city. Prices and availability are checked automatically.</p>
+      <div id="modal-hotel-list" class="space-y-2 overflow-y-auto flex-1 pr-1"></div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: CHANGE FLIGHT (M6, G2)              -->
+  <!-- ========================================== -->
+  <div id="modal-flight" class="hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl space-y-4 max-h-[85vh] flex flex-col">
+      <div class="flex items-center justify-between border-b pb-3">
+        <h3 class="font-bold text-slate-800" id="modal-flight-title">Change Flight</h3>
+        <button onclick="closeModal('modal-flight')" class="text-slate-400 hover:text-slate-600">✕</button>
+      </div>
+      <p class="text-xs text-slate-500">Select an alternative flight for this leg. Pickup times will adjust accordingly.</p>
+      <div id="modal-flight-list" class="space-y-2 overflow-y-auto flex-1 pr-1"></div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: ADD ATTRACTION (M6)                 -->
+  <!-- ========================================== -->
+  <div id="modal-attraction" class="hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl space-y-4 max-h-[85vh] flex flex-col">
+      <div class="flex items-center justify-between border-b pb-3">
+        <h3 class="font-bold text-slate-800" id="modal-attraction-title">Add Attraction</h3>
+        <button onclick="closeModal('modal-attraction')" class="text-slate-400 hover:text-slate-600">✕</button>
+      </div>
+      <p class="text-xs text-slate-500">Pick an attraction open on this date. Schedule will be verified.</p>
+      <div id="modal-attraction-list" class="space-y-2 overflow-y-auto flex-1 pr-1"></div>
+    </div>
+  </div>
+
+  <!-- Application Logic -->
+  <script src="/app.js"></script>
+</body>
+</html>
